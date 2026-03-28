@@ -45,6 +45,7 @@ export default async function AccountPage() {
     <AccountShell
       accountLabel={accountLabel}
       signOut={signOut}
+      showAdminLink
     />
   );
 }

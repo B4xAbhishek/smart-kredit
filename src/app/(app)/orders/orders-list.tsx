@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 type LoanTab = "ongoing" | "completed";
 
-type LoanRow = {
+export type OrdersLoanRow = {
   id: string;
   productName: string;
   amount: string;
@@ -13,46 +13,26 @@ type LoanRow = {
   statusVariant: "settled" | "active" | "pending";
 };
 
-const COMPLETED: LoanRow[] = [
-  {
-    id: "280310020003525992",
-    productName: "Daily Cash",
-    amount: "3,500",
-    status: "Settled",
-    statusVariant: "settled",
-  },
-  {
-    id: "280310020003525991",
-    productName: "Daily Cash",
-    amount: "2,100",
-    status: "Settled",
-    statusVariant: "settled",
-  },
-];
-
-const ONGOING: LoanRow[] = [
-  {
-    id: "280310020003526001",
-    productName: "Flex Loan",
-    amount: "5,000",
-    status: "Active",
-    statusVariant: "active",
-  },
-];
-
-function statusClass(v: LoanRow["statusVariant"]) {
+function statusClass(v: OrdersLoanRow["statusVariant"]) {
   if (v === "settled") return "text-emerald-600";
   if (v === "active") return "text-amber-600";
   return "text-zinc-500";
 }
 
-export function OrdersList() {
+export function OrdersList({ loans }: { loans: OrdersLoanRow[] }) {
   const [tab, setTab] = useState<LoanTab>("completed");
 
-  const rows = useMemo(
-    () => (tab === "completed" ? COMPLETED : ONGOING),
-    [tab],
-  );
+  const { completed, ongoing } = useMemo(() => {
+    const completedRows: OrdersLoanRow[] = [];
+    const ongoingRows: OrdersLoanRow[] = [];
+    for (const row of loans) {
+      if (row.statusVariant === "settled") completedRows.push(row);
+      else ongoingRows.push(row);
+    }
+    return { completed: completedRows, ongoing: ongoingRows };
+  }, [loans]);
+
+  const rows = tab === "completed" ? completed : ongoing;
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-zinc-100/90">

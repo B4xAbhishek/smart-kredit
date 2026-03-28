@@ -5,6 +5,7 @@ import {
   LogOut,
   Pencil,
   Phone,
+  Shield,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -13,12 +14,14 @@ type AccountShellProps = {
   accountLabel: string;
   signOut: () => Promise<void>;
   contactTel?: string;
+  showAdminLink?: boolean;
 };
 
 export function AccountShell({
   accountLabel,
   signOut,
   contactTel = "+911800000000",
+  showAdminLink = false,
 }: AccountShellProps) {
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-zinc-100/90">
@@ -55,6 +58,23 @@ export function AccountShell({
         </h2>
 
         <nav className="mt-4 flex flex-col gap-2" aria-label="Account actions">
+          {showAdminLink ? (
+            <Link
+              href="/admin"
+              className="group flex cursor-pointer items-center gap-3 rounded-xl bg-white px-3 py-3.5 shadow-sm ring-1 ring-zinc-100 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-plum text-white shadow-sm">
+                <Shield className="size-5" strokeWidth={2} aria-hidden />
+              </span>
+              <span className="flex-1 text-[15px] font-medium text-zinc-900">
+                Admin
+              </span>
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-indigo/12 text-brand-indigo transition group-hover:bg-brand-indigo/18">
+                <ChevronRight className="size-4" strokeWidth={2.5} aria-hidden />
+              </span>
+            </Link>
+          ) : null}
+
           <Link
             href={`tel:${contactTel}`}
             className="group flex cursor-pointer items-center gap-3 rounded-xl bg-white px-3 py-3.5 shadow-sm ring-1 ring-zinc-100 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"

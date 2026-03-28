@@ -1,8 +1,12 @@
 "use client";
 
 import { ArrowLeft, FileText, Hand } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+
+import paytmLogo from "@/assets/paytm.png";
+import phonepeLogo from "@/assets/phonepe.png";
 
 const INITIAL_SECONDS = 5 * 60 + 10; // 05:10
 
@@ -127,15 +131,16 @@ export function PaymentCheckout() {
               className="flex w-full cursor-pointer items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-brand-indigo/35 hover:bg-brand-lavender/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
             >
               <span
-                className="flex size-11 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold leading-tight text-white shadow-inner"
-                style={{
-                  background: "linear-gradient(135deg, #00baf2 0%, #0066b3 100%)",
-                }}
+                className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-zinc-100"
                 aria-hidden
               >
-                Pay
-                <br />
-                tm
+                <Image
+                  src={paytmLogo}
+                  alt=""
+                  fill
+                  className="object-contain p-0.5"
+                  sizes="44px"
+                />
               </span>
               <span className="flex-1 text-[15px] font-semibold text-zinc-900">
                 Paytm
@@ -148,16 +153,19 @@ export function PaymentCheckout() {
               className="flex w-full cursor-pointer items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-brand-indigo/35 hover:bg-brand-lavender/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
             >
               <span
-                className="flex size-11 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-inner"
-                style={{
-                  background: "linear-gradient(145deg, #5f259f 0%, #7c3aed 55%, #a78bfa 100%)",
-                }}
+                className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-zinc-100"
                 aria-hidden
               >
-                Pe
+                <Image
+                  src={phonepeLogo}
+                  alt=""
+                  fill
+                  className="object-contain p-0.5"
+                  sizes="44px"
+                />
               </span>
-              <span className="flex-1 text-[15px] font-semibold capitalize text-zinc-900">
-                phonepe
+              <span className="flex-1 text-[15px] font-semibold text-zinc-900">
+                PhonePe
               </span>
               <Hand className="size-5 shrink-0 text-zinc-400" strokeWidth={1.5} aria-hidden />
             </button>
