@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowLeft, FileText, Hand } from "lucide-react";
+import { ArrowLeft, FileText, Hand, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import paytmLogo from "@/assets/paytm.png";
 import phonepeLogo from "@/assets/phonepe.png";
+import utrHowToFind from "@/assets/utr-how-to-find.png";
 
 const INITIAL_SECONDS = 5 * 60 + 10; // 05:10
 
@@ -25,6 +26,7 @@ export function PaymentCheckout() {
   const [qrVisible, setQrVisible] = useState(false);
   const [refNo, setRefNo] = useState("");
   const [copied, setCopied] = useState(false);
+  const [utrHelpOpen, setUtrHelpOpen] = useState(false);
 
   const refDigits = refNo.replace(/\D/g, "");
   const canSubmit = refDigits.length === 12;
@@ -35,6 +37,15 @@ export function PaymentCheckout() {
     }, 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!utrHelpOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setUtrHelpOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [utrHelpOpen]);
 
   const onShowQr = useCallback(() => setQrVisible(true), []);
 
@@ -229,6 +240,7 @@ export function PaymentCheckout() {
               <div className="mt-2 flex justify-end">
                 <button
                   type="button"
+                  onClick={() => setUtrHelpOpen(true)}
                   className="cursor-pointer text-sm font-medium text-[#5c93e6] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5c93e6]"
                 >
                   How to find utr?
@@ -247,6 +259,47 @@ export function PaymentCheckout() {
           </button>
         </div>
       </div>
+
+      {utrHelpOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          role="presentation"
+          onClick={() => setUtrHelpOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="utr-help-title"
+            className="relative max-h-[90vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+              <h2 id="utr-help-title" className="text-sm font-semibold text-zinc-900">
+                Where to find your UTR
+              </h2>
+              <button
+                type="button"
+                onClick={() => setUtrHelpOpen(false)}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+                aria-label="Close"
+              >
+                <X className="size-5" strokeWidth={2} />
+              </button>
+            </div>
+            <div className="max-h-[calc(90vh-3.5rem)] overflow-y-auto p-3">
+              <Image
+                src={utrHowToFind}
+                alt="Example payment receipt: the UTR appears in the payment details section, below the debited account."
+                width={utrHowToFind.width}
+                height={utrHowToFind.height}
+                className="h-auto w-full object-contain"
+                sizes="(max-width: 28rem) 100vw, 28rem"
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

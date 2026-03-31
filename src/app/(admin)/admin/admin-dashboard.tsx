@@ -2,6 +2,7 @@
 
 import {
   createLoan,
+  createUser,
   deleteLoan,
   type LoanStatus,
   updateLoan,
@@ -12,9 +13,11 @@ import {
   BadgeCheck,
   ChevronDown,
   ChevronRight,
+  Mail,
   Pencil,
   Plus,
   Trash2,
+  UserPlus,
   Users,
   Wallet,
 } from "lucide-react";
@@ -35,6 +38,7 @@ export type AdminUserRow = {
   id: string;
   phone: string | null;
   phone_e164: string | null;
+  email: string | null;
   display_name: string | null;
   created_at: string;
   loans: AdminLoanRow[] | null;
@@ -46,8 +50,13 @@ function formatInr(n: number) {
   }).format(n);
 }
 
-function formatPhone(p: AdminUserRow) {
-  return p.phone_e164 ?? p.phone ?? "—";
+function formatUserIdentifier(p: AdminUserRow) {
+  return p.phone_e164 ?? p.phone ?? p.email ?? "—";
+}
+
+/** true if this is a Google / email-only user */
+function isEmailUser(p: AdminUserRow) {
+  return !p.phone && !p.phone_e164 && Boolean(p.email);
 }
 
 function loanStats(loans: AdminLoanRow[] | null) {
@@ -75,6 +84,7 @@ export function AdminDashboard({ users }: { users: AdminUserRow[] }) {
   const [pending, startTransition] = useTransition();
   const [openId, setOpenId] = useState<string | null>(users[0]?.id ?? null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [showCreateUser, setShowCreateUser] = useState(false);
 
   const totals = useMemo(() => {
     let usersCount = users.length;
@@ -129,6 +139,15 @@ export function AdminDashboard({ users }: { users: AdminUserRow[] }) {
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowCreateUser((v) => !v)}
+            disabled={pending}
+            className="inline-flex items-center gap-2 rounded-full bg-brand-indigo px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 disabled:opacity-50"
+          >
+            <UserPlus className="size-4" />
+            Create User
+          </button>
         </header>
 
         <section className="grid gap-3 p-4 sm:grid-cols-3 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-zinc-200 lg:border-b lg:border-zinc-200 lg:p-0">
@@ -182,6 +201,20 @@ export function AdminDashboard({ users }: { users: AdminUserRow[] }) {
           </p>
         ) : null}
 
+        {showCreateUser ? (
+          <CreateUserPanel
+            disabled={pending}
+            onClose={() => setShowCreateUser(false)}
+            onCreate={(input) =>
+              runAction(async () => {
+                const r = await createUser(input);
+                if (r.ok) setShowCreateUser(false);
+                return r;
+              })
+            }
+          />
+        ) : null}
+
         <div className="hidden lg:block lg:border-b lg:border-zinc-200 lg:px-8 lg:py-3">
           <h2 className="text-sm font-semibold text-zinc-800">Users</h2>
           <p className="text-xs text-zinc-500">
@@ -221,9 +254,14 @@ export function AdminDashboard({ users }: { users: AdminUserRow[] }) {
                     className="border-b border-zinc-100 align-top odd:bg-white even:bg-zinc-50/60 hover:bg-zinc-100/80 max-lg:border-brand-plum/8 max-lg:even:bg-transparent max-lg:hover:bg-transparent"
                   >
                     <td className="px-3 py-3 font-mono text-xs text-brand-plum/90 sm:px-4 lg:px-6 lg:py-3.5 lg:text-sm">
-                      <span className="block break-all text-zinc-900 lg:max-w-none">
-                        {formatPhone(u)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {isEmailUser(u) ? (
+                          <Mail className="size-3 shrink-0 text-brand-indigo/60" />
+                        ) : null}
+                        <span className="block break-all text-zinc-900 lg:max-w-none">
+                          {formatUserIdentifier(u)}
+                        </span>
+                      </div>
                       <span className="mt-1 block break-all text-[10px] text-zinc-400 max-lg:text-brand-plum/40 lg:text-xs">
                         <span className="lg:hidden">{u.id.slice(0, 8)}…</span>
                         <span className="hidden lg:inline">{u.id}</span>
@@ -432,11 +470,11 @@ function LoanPanel({
   return (
     <section
       className="rounded-2xl border border-brand-plum/12 bg-white/80 p-4 shadow-sm lg:border-zinc-200 lg:bg-white lg:p-6 lg:shadow-[0_1px_3px_0_rgb(0_0_0_/_0.06)]"
-      aria-label={`Loans for ${formatPhone(user)}`}
+      aria-label={`Loans for ${formatUserIdentifier(user)}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 lg:gap-4">
         <h2 className="font-[family-name:var(--font-montserrat)] text-base font-bold text-brand-plum lg:text-lg">
-          Loans · {formatPhone(user)}
+          Loans · {formatUserIdentifier(user)}
         </h2>
         {!adding ? (
           <button
@@ -568,6 +606,125 @@ function LoanPanel({
         ) : null}
       </ul>
     </section>
+  );
+}
+
+function CreateUserPanel({
+  disabled,
+  onClose,
+  onCreate,
+}: {
+  disabled: boolean;
+  onClose: () => void;
+  onCreate: (input: {
+    phone?: string;
+    email?: string;
+    displayName?: string;
+  }) => void;
+}) {
+  const [mode, setMode] = useState<"phone" | "email">("phone");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
+
+  return (
+    <div className="border-b border-zinc-200 bg-brand-lavender/30 px-4 py-4 lg:px-8 lg:py-5">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="font-semibold text-brand-plum">Create New User</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-xs text-brand-plum/50 hover:text-brand-plum"
+        >
+          Cancel
+        </button>
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMode("phone")}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+            mode === "phone"
+              ? "bg-brand-indigo text-white"
+              : "bg-white text-brand-plum ring-1 ring-brand-plum/20"
+          }`}
+        >
+          Phone (OTP)
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("email")}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+            mode === "email"
+              ? "bg-brand-indigo text-white"
+              : "bg-white text-brand-plum ring-1 ring-brand-plum/20"
+          }`}
+        >
+          Gmail / Email
+        </button>
+      </div>
+
+      <form
+        className="mt-3 grid gap-3 sm:grid-cols-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (mode === "phone") {
+            onCreate({ phone: phone.trim(), displayName: displayName || undefined });
+          } else {
+            onCreate({ email: email.trim(), displayName: displayName || undefined });
+          }
+        }}
+      >
+        {mode === "phone" ? (
+          <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
+            Phone number (+91…)
+            <input
+              required
+              type="tel"
+              placeholder="+919876543210"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="rounded-lg border border-brand-plum/20 px-2 py-2 text-sm text-brand-plum"
+              disabled={disabled}
+            />
+          </label>
+        ) : (
+          <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
+            Email address
+            <input
+              required
+              type="email"
+              placeholder="user@gmail.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="rounded-lg border border-brand-plum/20 px-2 py-2 text-sm text-brand-plum"
+              disabled={disabled}
+            />
+          </label>
+        )}
+        <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
+          Display name (optional)
+          <input
+            type="text"
+            placeholder="Full name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="rounded-lg border border-brand-plum/20 px-2 py-2 text-sm text-brand-plum"
+            disabled={disabled}
+          />
+        </label>
+        <div className="flex items-end">
+          <button
+            type="submit"
+            disabled={disabled}
+            className="w-full rounded-lg bg-brand-indigo px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Create
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
