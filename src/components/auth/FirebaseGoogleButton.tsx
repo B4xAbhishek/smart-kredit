@@ -59,7 +59,7 @@ export function FirebaseGoogleButton({ nextPath }: Props) {
       if (!res.ok) {
         const msg =
           data.error === "firebase_admin_not_configured"
-            ? "Add your Firebase service account JSON: save it as firebase-service-account.json in the project root (see FIREBASE_SERVICE_ACCOUNT_PATH in .env.local), or set FIREBASE_SERVICE_ACCOUNT_JSON / GOOGLE_APPLICATION_CREDENTIALS."
+            ? "Server missing Firebase Admin credentials. In Vercel: Project → Settings → Environment Variables — add FIREBASE_SERVICE_ACCOUNT_JSON (full service account JSON as one line) or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY. Redeploy after saving."
             : data.error === "mongodb_not_configured"
               ? "Server is missing MONGODB_URI. Set it in .env.local and restart."
               : "Google sign-in failed. Try again.";

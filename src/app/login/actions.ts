@@ -6,6 +6,17 @@ import { isDevOtpBypassEnabled } from "@/lib/dev-otp-bypass";
 import { generateOtp, storeOtp, verifyStoredOtp } from "@/lib/otp-store";
 import { clearSession, createSession } from "@/lib/session";
 
+const FIREBASE_ADMIN_CONFIG_ERROR =
+  "Sign-in is not configured on the server. Add Firebase Admin env vars in your host (e.g. Vercel: FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY) and redeploy.";
+
+function isFirebaseAdminConfigError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    msg.includes("Firebase Admin is not configured") ||
+    msg.includes("Could not load the default credentials")
+  );
+}
+
 export async function sendOtpAction(phoneE164: string) {
   if (phoneE164.length < 13) {
     return { ok: false as const, error: "Invalid phone number." };
@@ -33,18 +44,32 @@ export async function verifyOtpAction(phoneE164: string, otp: string) {
     if (digits.length !== 6) {
       return { ok: false as const, error: "Enter any 6-digit code (dev bypass)." };
     }
-    const uid = await ensureFirebaseUserForPhone(phoneE164);
-    await createSession(phoneE164, uid);
-    return { ok: true as const };
+    try {
+      const uid = await ensureFirebaseUserForPhone(phoneE164);
+      await createSession(phoneE164, uid);
+      return { ok: true as const };
+    } catch (e) {
+      if (isFirebaseAdminConfigError(e)) {
+        return { ok: false as const, error: FIREBASE_ADMIN_CONFIG_ERROR };
+      }
+      throw e;
+    }
   }
 
   if (!verifyStoredOtp(phoneE164, otp)) {
     return { ok: false as const, error: "Invalid or expired OTP." };
   }
 
-  const uid = await ensureFirebaseUserForPhone(phoneE164);
-  await createSession(phoneE164, uid);
-  return { ok: true as const };
+  try {
+    const uid = await ensureFirebaseUserForPhone(phoneE164);
+    await createSession(phoneE164, uid);
+    return { ok: true as const };
+  } catch (e) {
+    if (isFirebaseAdminConfigError(e)) {
+      return { ok: false as const, error: FIREBASE_ADMIN_CONFIG_ERROR };
+    }
+    throw e;
+  }
 }
 
 export async function logoutAction() {
