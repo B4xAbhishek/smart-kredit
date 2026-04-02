@@ -2,21 +2,14 @@
 
 import crypto from "crypto";
 import { cookies } from "next/headers";
+import { SESSION_COOKIE } from "@/lib/session-constants";
+import type { SessionPayload } from "@/lib/session-types";
 
-export const SESSION_COOKIE = "sk-session";
+export type { SessionPayload } from "@/lib/session-types";
+export { SESSION_COOKIE } from "@/lib/session-constants";
+
 const SECRET = process.env.SESSION_SECRET || "dev-secret-change-in-production";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-
-export interface SessionPayload {
-  /** E.164 phone for OTP users */
-  phone?: string;
-  /** Email for Google OAuth users */
-  email?: string;
-  /** Supabase auth user ID (set for OAuth users) */
-  userId?: string;
-  iat: number;
-  exp: number;
-}
 
 function sign(payload: SessionPayload): string {
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -47,10 +40,15 @@ function verify(token: string): SessionPayload | null {
   }
 }
 
-/** Create a session cookie after successful OTP verification. */
-export async function createSession(phone: string) {
+/** OTP login: stores phone + Firebase Auth UID. */
+export async function createSession(phone: string, firebaseUid: string) {
   const now = Math.floor(Date.now() / 1000);
-  const token = sign({ phone, iat: now, exp: now + MAX_AGE });
+  const token = sign({
+    phone,
+    userId: firebaseUid,
+    iat: now,
+    exp: now + MAX_AGE,
+  });
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -61,10 +59,10 @@ export async function createSession(phone: string) {
   });
 }
 
-/** Create a session cookie for Google OAuth users. */
-export async function createEmailSession(email: string, userId: string) {
+/** Google sign-in: email + Firebase Auth UID. */
+export async function createEmailSession(email: string, firebaseUid: string) {
   const now = Math.floor(Date.now() / 1000);
-  const token = sign({ email, userId, iat: now, exp: now + MAX_AGE });
+  const token = sign({ email, userId: firebaseUid, iat: now, exp: now + MAX_AGE });
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -87,12 +85,4 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function clearSession() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
-}
-
-/** Verify session from a raw cookie value (for middleware). */
-export function verifySessionToken(
-  token: string | undefined,
-): SessionPayload | null {
-  if (!token) return null;
-  return verify(token);
 }

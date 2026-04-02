@@ -18,6 +18,7 @@ import {
   Plus,
   Trash2,
   UserPlus,
+  Search,
   Users,
   Wallet,
 } from "lucide-react";
@@ -79,24 +80,38 @@ function loanStats(loans: AdminLoanRow[] | null) {
 
 const STATUS_OPTIONS: LoanStatus[] = ["pending", "active", "settled"];
 
-export function AdminDashboard({ users }: { users: AdminUserRow[] }) {
+export function AdminDashboard({
+  users,
+  searchQ,
+  page,
+  pageSize,
+  totalCount,
+  stats,
+}: {
+  users: AdminUserRow[];
+  searchQ: string;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  stats: { usersCount: number; avail: number; settled: number };
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [openId, setOpenId] = useState<string | null>(users[0]?.id ?? null);
   const [msg, setMsg] = useState<string | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
 
-  const totals = useMemo(() => {
-    let usersCount = users.length;
-    let avail = 0;
-    let settled = 0;
-    for (const u of users) {
-      const s = loanStats(u.loans);
-      avail += s.activeSum;
-      settled += s.settledSum;
-    }
-    return { usersCount, avail, settled };
-  }, [users]);
+  const totals = useMemo(() => stats, [stats]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize) || 1);
+
+  function adminHref(nextPage: number, q: string) {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (nextPage > 1) params.set("page", String(nextPage));
+    const s = params.toString();
+    return s ? `/admin?${s}` : "/admin";
+  }
 
   function runAction(fn: () => Promise<{ error?: string; ok?: boolean }>) {
     setMsg(null);
@@ -215,11 +230,52 @@ export function AdminDashboard({ users }: { users: AdminUserRow[] }) {
           />
         ) : null}
 
-        <div className="hidden lg:block lg:border-b lg:border-zinc-200 lg:px-8 lg:py-3">
-          <h2 className="text-sm font-semibold text-zinc-800">Users</h2>
-          <p className="text-xs text-zinc-500">
-            Phone, balances, and loan counts. Expand a row to manage loans.
-          </p>
+        <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-4 lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-4">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-800">Users</h2>
+            <p className="text-xs text-zinc-500">
+              Search by Firebase user ID. Expand a row to manage loans.
+            </p>
+          </div>
+          <form
+            action="/admin"
+            method="get"
+            className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:max-w-xl"
+          >
+            <label className="sr-only" htmlFor="admin-user-search">
+              User ID
+            </label>
+            <div className="relative min-w-0 flex-1">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400"
+                aria-hidden
+              />
+              <input
+                id="admin-user-search"
+                name="q"
+                type="search"
+                placeholder="Search by user ID…"
+                defaultValue={searchQ}
+                autoComplete="off"
+                className="w-full rounded-lg border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-brand-indigo focus:outline-none focus:ring-1 focus:ring-brand-indigo"
+              />
+            </div>
+            <input type="hidden" name="page" value="1" />
+            <button
+              type="submit"
+              className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            >
+              Search
+            </button>
+            {searchQ ? (
+              <Link
+                href="/admin"
+                className="shrink-0 text-sm font-medium text-brand-indigo hover:underline"
+              >
+                Clear
+              </Link>
+            ) : null}
+          </form>
         </div>
 
         <div className="overflow-x-auto lg:rounded-b-lg">
@@ -315,11 +371,51 @@ export function AdminDashboard({ users }: { users: AdminUserRow[] }) {
           </table>
           {users.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-zinc-500 max-lg:text-brand-plum/55 lg:border-t lg:border-zinc-100 lg:px-6 lg:text-sm">
-              No profiles yet. Users appear after they sign up (or run the SQL
-              backfill in the migration file).
+              {searchQ
+                ? "No users match this user ID search."
+                : "No profiles yet. Users appear after they sign up."}
             </p>
           ) : null}
         </div>
+
+        {totalCount > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-600 lg:px-8">
+            <p className="tabular-nums">
+              Showing{" "}
+              <span className="font-medium text-zinc-900">
+                {(page - 1) * pageSize + 1}–
+                {Math.min(page * pageSize, totalCount)}
+              </span>{" "}
+              of <span className="font-medium text-zinc-900">{totalCount}</span>
+            </p>
+            <nav
+              className="flex flex-wrap items-center gap-2"
+              aria-label="Pagination"
+            >
+              <Link
+                href={adminHref(Math.max(1, page - 1), searchQ)}
+                className={`inline-flex items-center rounded-lg border border-zinc-200 px-3 py-1.5 font-medium transition hover:bg-zinc-50 ${
+                  page <= 1 ? "pointer-events-none opacity-40" : ""
+                }`}
+                aria-disabled={page <= 1}
+              >
+                Previous
+              </Link>
+              <span className="tabular-nums text-zinc-500">
+                Page {page} / {totalPages}
+              </span>
+              <Link
+                href={adminHref(Math.min(totalPages, page + 1), searchQ)}
+                className={`inline-flex items-center rounded-lg border border-zinc-200 px-3 py-1.5 font-medium transition hover:bg-zinc-50 ${
+                  page >= totalPages ? "pointer-events-none opacity-40" : ""
+                }`}
+                aria-disabled={page >= totalPages}
+              >
+                Next
+              </Link>
+            </nav>
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-6 lg:space-y-8">

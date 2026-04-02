@@ -3,18 +3,13 @@ import {
   isDevOtpBypassEnabled,
   parseDevSession,
 } from "@/lib/dev-otp-bypass";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/session";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function RootPage() {
-  if (!isSupabaseConfigured()) {
-    redirect("/home");
-  }
-
   if (isDevOtpBypassEnabled()) {
     const jar = await cookies();
     const dev = parseDevSession(jar.get(DEV_OTP_SESSION_COOKIE)?.value);
@@ -23,16 +18,8 @@ export default async function RootPage() {
     }
   }
 
-  const supabase = await createClient();
-  if (!supabase) {
-    redirect("/home");
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
+  const session = await getSession();
+  if (session) {
     redirect("/home");
   }
   redirect("/login");

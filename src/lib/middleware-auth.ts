@@ -1,5 +1,6 @@
+import { SESSION_COOKIE } from "@/lib/session-constants";
+import { verifySessionTokenEdge } from "@/lib/session-edge-verify";
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
 const PROTECTED = [
   "/home",
@@ -12,7 +13,7 @@ const PROTECTED = [
 
 export async function updateSession(request: NextRequest) {
   const sessionToken = request.cookies.get(SESSION_COOKIE)?.value;
-  const session = verifySessionToken(sessionToken);
+  const session = await verifySessionTokenEdge(sessionToken);
   const isAuthed = Boolean(session);
 
   const path = request.nextUrl.pathname;

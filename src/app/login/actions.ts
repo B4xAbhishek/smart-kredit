@@ -1,10 +1,10 @@
 "use server";
 
 import { sendOtpSms } from "@/lib/authkey";
+import { ensureFirebaseUserForPhone } from "@/lib/firebase/ensure-phone-user";
 import { isDevOtpBypassEnabled } from "@/lib/dev-otp-bypass";
 import { generateOtp, storeOtp, verifyStoredOtp } from "@/lib/otp-store";
-import { createSession, clearSession } from "@/lib/session";
-import { ensureAuthUserForPhone } from "@/lib/supabase/ensure-auth-user";
+import { clearSession, createSession } from "@/lib/session";
 
 export async function sendOtpAction(phoneE164: string) {
   if (phoneE164.length < 13) {
@@ -15,7 +15,6 @@ export async function sendOtpAction(phoneE164: string) {
   storeOtp(phoneE164, otp);
 
   if (isDevOtpBypassEnabled()) {
-    // Local dev: no SMS; OTP is accepted in verify without matching the store.
     console.info(`[dev OTP bypass] ${phoneE164} — use any 6 digits to log in`);
     return { ok: true as const };
   }
@@ -34,8 +33,8 @@ export async function verifyOtpAction(phoneE164: string, otp: string) {
     if (digits.length !== 6) {
       return { ok: false as const, error: "Enter any 6-digit code (dev bypass)." };
     }
-    await createSession(phoneE164);
-    await ensureAuthUserForPhone(phoneE164);
+    const uid = await ensureFirebaseUserForPhone(phoneE164);
+    await createSession(phoneE164, uid);
     return { ok: true as const };
   }
 
@@ -43,8 +42,8 @@ export async function verifyOtpAction(phoneE164: string, otp: string) {
     return { ok: false as const, error: "Invalid or expired OTP." };
   }
 
-  await createSession(phoneE164);
-  await ensureAuthUserForPhone(phoneE164);
+  const uid = await ensureFirebaseUserForPhone(phoneE164);
+  await createSession(phoneE164, uid);
   return { ok: true as const };
 }
 

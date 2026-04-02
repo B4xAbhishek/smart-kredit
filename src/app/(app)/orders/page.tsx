@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { getMongoDb } from "@/lib/mongodb/client";
+import { getSession } from "@/lib/session";
+import { resolveProfileUserId } from "@/lib/session-profile";
 import { OrdersList, type OrdersLoanRow } from "./orders-list";
 
 export const metadata = {
@@ -11,45 +13,68 @@ function formatAmount(n: number) {
   }).format(n);
 }
 
+function tsToMillis(v: unknown): number {
+  if (v instanceof Date) return v.getTime();
+  if (
+    v &&
+    typeof v === "object" &&
+    "toMillis" in v &&
+    typeof (v as { toMillis: () => number }).toMillis === "function"
+  ) {
+    return (v as { toMillis: () => number }).toMillis();
+  }
+  return 0;
+}
+
 export default async function OrdersPage() {
   let loans: OrdersLoanRow[] = [];
 
-  const supabase = await createClient();
-  if (supabase) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from("loans")
-        .select("id, product_name, amount_rupees, status")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+  const session = await getSession();
+  const profileId = await resolveProfileUserId(session);
 
-      if (data) {
-        loans = data.map((row) => {
-          const status = row.status as string;
-          const statusVariant =
-            status === "settled"
-              ? ("settled" as const)
-              : status === "active"
-                ? ("active" as const)
-                : ("pending" as const);
-          const label =
-            status === "settled"
-              ? "Settled"
-              : status === "active"
-                ? "Active"
-                : "Pending";
-          return {
-            id: row.id,
-            productName: row.product_name,
-            amount: formatAmount(Number(row.amount_rupees)),
-            status: label,
-            statusVariant,
-          };
-        });
-      }
+  if (profileId) {
+    try {
+      const db = await getMongoDb();
+      const docs = await db
+        .collection("loans")
+        .find({ userId: profileId })
+        .sort({ created_at: -1 })
+        .toArray();
+
+      type Row = OrdersLoanRow & { createdMs: number };
+      const mapped: Row[] = docs.map((doc) => {
+        const row = doc as {
+          product_name?: string;
+          amount_rupees?: number;
+          status?: string;
+          created_at?: unknown;
+        };
+        const status = String(row.status ?? "");
+        const statusVariant =
+          status === "settled"
+            ? ("settled" as const)
+            : status === "active"
+              ? ("active" as const)
+              : ("pending" as const);
+        const label =
+          status === "settled"
+            ? "Settled"
+            : status === "active"
+              ? "Active"
+              : "Pending";
+        return {
+          id: String(doc._id),
+          productName: String(row.product_name ?? ""),
+          amount: formatAmount(Number(row.amount_rupees)),
+          status: label,
+          statusVariant,
+          createdMs: tsToMillis(row.created_at),
+        };
+      });
+      mapped.sort((a, b) => b.createdMs - a.createdMs);
+      loans = mapped.map(({ createdMs: _c, ...rest }) => rest);
+    } catch {
+      loans = [];
     }
   }
 
