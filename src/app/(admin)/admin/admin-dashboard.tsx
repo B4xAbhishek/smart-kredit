@@ -41,6 +41,7 @@ export type AdminUserRow = {
   phone_e164: string | null;
   email: string | null;
   display_name: string | null;
+  upi_id: string | null;
   created_at: string;
   loans: AdminLoanRow[] | null;
 };
@@ -279,7 +280,7 @@ export function AdminDashboard({
         </div>
 
         <div className="overflow-x-auto lg:rounded-b-lg">
-          <table className="w-full min-w-[720px] table-fixed border-collapse text-left text-sm lg:min-w-0 lg:text-sm">
+          <table className="w-full min-w-[880px] table-fixed border-collapse text-left text-sm lg:min-w-0 lg:text-sm">
             <thead className="bg-zinc-100 max-lg:bg-brand-lavender/80">
               <tr className="border-b border-zinc-200 max-lg:border-brand-plum/10">
                 <th className="w-[22%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
@@ -288,10 +289,13 @@ export function AdminDashboard({
                 <th className="w-[18%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
                   Display name
                 </th>
-                <th className="w-[16%] px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:text-left max-lg:normal-case max-lg:text-amber-700 sm:px-4 lg:px-6 lg:py-3.5">
+                <th className="w-[16%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
+                  UPI ID
+                </th>
+                <th className="w-[14%] px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:text-left max-lg:normal-case max-lg:text-amber-700 sm:px-4 lg:px-6 lg:py-3.5">
                   Available (₹)
                 </th>
-                <th className="w-[16%] px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:text-left max-lg:normal-case max-lg:text-emerald-700 sm:px-4 lg:px-6 lg:py-3.5">
+                <th className="w-[14%] px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:text-left max-lg:normal-case max-lg:text-emerald-700 sm:px-4 lg:px-6 lg:py-3.5">
                   Settled (₹)
                 </th>
                 <th className="w-[10%] px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:text-left max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
@@ -330,6 +334,17 @@ export function AdminDashboard({
                         onSave={(displayName) =>
                           runAction(() =>
                             updateProfile({ userId: u.id, displayName }),
+                          )
+                        }
+                      />
+                    </td>
+                    <td className="px-3 py-3 sm:px-4 lg:px-6 lg:py-3.5">
+                      <ProfileUpiCell
+                        user={u}
+                        disabled={pending}
+                        onSave={(upiId) =>
+                          runAction(() =>
+                            updateProfile({ userId: u.id, upiId }),
                           )
                         }
                       />
@@ -457,6 +472,78 @@ export function AdminDashboard({
         ) : null,
       )}
       </div>
+    </div>
+  );
+}
+
+function ProfileUpiCell({
+  user,
+  disabled,
+  onSave,
+}: {
+  user: AdminUserRow;
+  disabled: boolean;
+  onSave: (v: string | null) => void;
+}) {
+  const [edit, setEdit] = useState(false);
+  const [val, setVal] = useState(user.upi_id ?? "");
+
+  if (edit) {
+    return (
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave(val || null);
+          setEdit(false);
+        }}
+      >
+        <input
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-brand-plum/20 px-2 py-1.5 font-mono text-xs"
+          placeholder="name@upi"
+          autoComplete="off"
+          inputMode="email"
+          disabled={disabled}
+        />
+        <button
+          type="submit"
+          disabled={disabled}
+          className="rounded-lg bg-brand-indigo px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setVal(user.upi_id ?? "");
+            setEdit(false);
+          }}
+          className="text-xs text-brand-plum/55"
+        >
+          Cancel
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="break-all font-mono text-xs text-brand-plum">
+        {user.upi_id?.trim() || "—"}
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          setVal(user.upi_id ?? "");
+          setEdit(true);
+        }}
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-brand-indigo hover:bg-brand-lavender"
+        aria-label="Edit UPI ID"
+      >
+        <Pencil className="size-3.5" />
+      </button>
     </div>
   );
 }
@@ -716,12 +803,14 @@ function CreateUserPanel({
     phone?: string;
     email?: string;
     displayName?: string;
+    upiId?: string;
   }) => void;
 }) {
   const [mode, setMode] = useState<"phone" | "email">("phone");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [upiId, setUpiId] = useState("");
 
   return (
     <div className="border-b border-zinc-200 bg-brand-lavender/30 px-4 py-4 lg:px-8 lg:py-5">
@@ -762,13 +851,17 @@ function CreateUserPanel({
       </div>
 
       <form
-        className="mt-3 grid gap-3 sm:grid-cols-3"
+        className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         onSubmit={(e) => {
           e.preventDefault();
+          const common = {
+            displayName: displayName || undefined,
+            upiId: upiId.trim() || undefined,
+          };
           if (mode === "phone") {
-            onCreate({ phone: phone.trim(), displayName: displayName || undefined });
+            onCreate({ phone: phone.trim(), ...common });
           } else {
-            onCreate({ email: email.trim(), displayName: displayName || undefined });
+            onCreate({ email: email.trim(), ...common });
           }
         }}
       >
@@ -810,7 +903,19 @@ function CreateUserPanel({
             disabled={disabled}
           />
         </label>
-        <div className="flex items-end">
+        <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
+          UPI ID (optional)
+          <input
+            type="text"
+            placeholder="name@upi"
+            value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            className="rounded-lg border border-brand-plum/20 px-2 py-2 font-mono text-sm text-brand-plum"
+            autoComplete="off"
+            disabled={disabled}
+          />
+        </label>
+        <div className="flex items-end sm:col-span-2 lg:col-span-1">
           <button
             type="submit"
             disabled={disabled}

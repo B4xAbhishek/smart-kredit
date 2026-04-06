@@ -124,6 +124,7 @@ export async function createUser(input: {
   phone?: string;
   email?: string;
   displayName?: string;
+  upiId?: string;
 }) {
   const { db, error: authError } = await requireAdminDb();
   if (!db) return { error: authError ?? "Database not available." };
@@ -163,6 +164,7 @@ export async function createUser(input: {
             phone_e164: e164,
             phone: e164,
             display_name: input.displayName?.trim() || null,
+            upi_id: input.upiId?.trim() || null,
             updated_at: now,
           },
           $setOnInsert: { created_at: now },
@@ -193,6 +195,7 @@ export async function createUser(input: {
           $set: {
             email,
             display_name: input.displayName?.trim() || null,
+            upi_id: input.upiId?.trim() || null,
             updated_at: now,
           },
           $setOnInsert: { created_at: now },
@@ -214,20 +217,27 @@ export async function createUser(input: {
 
 export async function updateProfile(input: {
   userId: string;
-  displayName: string | null;
+  displayName?: string | null;
+  upiId?: string | null;
 }) {
   const { db, error: authError } = await requireAdminDb();
   if (!db) return { error: authError ?? "Database not available." };
 
+  const set: Record<string, unknown> = { updated_at: new Date() };
+  if ("displayName" in input) {
+    set.display_name = input.displayName?.trim() || null;
+  }
+  if ("upiId" in input) {
+    set.upi_id = input.upiId?.trim() || null;
+  }
+  if (Object.keys(set).length <= 1) {
+    return { error: "Nothing to update." };
+  }
+
   try {
     const result = await db.collection<ProfileDoc>("profiles").updateOne(
       { _id: input.userId },
-      {
-        $set: {
-          display_name: input.displayName?.trim() || null,
-          updated_at: new Date(),
-        },
-      },
+      { $set: set },
     );
     if (result.matchedCount === 0) {
       return { error: "Profile not found." };

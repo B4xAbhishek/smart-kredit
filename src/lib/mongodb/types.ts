@@ -7,6 +7,8 @@ export type ProfileDoc = {
   display_name?: string | null;
   phone_e164?: string | null;
   phone?: string | null;
+  /** User UPI VPA for payouts / reconciliation (set by admin). */
+  upi_id?: string | null;
   is_admin?: boolean;
   created_at?: Date;
   updated_at?: Date;

@@ -1,6 +1,13 @@
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { Bell, CreditCard } from "lucide-react";
+import { HOME_PRODUCTS } from "@/lib/home-products";
+import { Bell, CreditCard, Zap } from "lucide-react";
 import Link from "next/link";
+
+function formatInr(n: number) {
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(n);
+}
 
 export default function HomePage() {
   return (
@@ -69,25 +76,49 @@ export default function HomePage() {
         </h2>
 
         <div className="mt-4 space-y-4">
-          <article className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-md ring-1 ring-brand-plum/8">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="size-10 shrink-0 rounded-full bg-gradient-to-br from-brand-indigo to-brand-plum shadow-inner" />
-              <div>
-                <p className="text-sm font-semibold text-brand-plum">
-                  Smart Kredit Flex
-                </p>
-                <p className="font-[family-name:var(--font-montserrat)] text-lg font-bold text-brand-plum">
-                  ₹2,000 – 80,000
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/payment"
-              className="inline-flex cursor-pointer shrink-0 items-center justify-center rounded-full bg-brand-indigo px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+          {Object.values(HOME_PRODUCTS).map((row) => (
+            <article
+              key={row.id}
+              className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(60,21,91,0.08)] ring-1 ring-zinc-100"
             >
-              Repay
-            </Link>
-          </article>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-400 via-purple-500 to-indigo-600 shadow-inner"
+                    aria-hidden
+                  >
+                    <Zap className="size-5 text-white" fill="currentColor" />
+                  </span>
+                  <span className="truncate font-[family-name:var(--font-montserrat)] text-base font-bold text-zinc-900">
+                    {row.productName}
+                  </span>
+                </div>
+                <span className="shrink-0 font-[family-name:var(--font-montserrat)] text-sm font-semibold italic text-emerald-600">
+                  Available
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2 text-xs text-zinc-500">
+                <span>ID:</span>
+                <span className="truncate font-mono tabular-nums">{row.id}</span>
+              </div>
+
+              <div className="mt-4 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs text-zinc-500">Amount of money</p>
+                  <p className="font-[family-name:var(--font-montserrat)] text-xl font-bold tabular-nums text-zinc-900">
+                    ₹ {formatInr(row.loanAmountRupees)}
+                  </p>
+                </div>
+                <Link
+                  href={`/order/${row.id}`}
+                  className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+                >
+                  Detail
+                </Link>
+              </div>
+            </article>
+          ))}
 
           <div
             className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-indigo to-brand-plum p-5 text-white shadow-lg"

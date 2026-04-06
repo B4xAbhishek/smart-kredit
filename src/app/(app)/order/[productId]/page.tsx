@@ -1,0 +1,142 @@
+import {
+  HOME_PRODUCTS,
+  isHomeProductId,
+  type HomeProductId,
+} from "@/lib/home-products";
+import { ArrowLeft, Clock } from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+export const metadata = {
+  title: "Order details · Smart Kredit",
+};
+
+function formatInr(n: number) {
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+const INTEREST_FEE_RUPEES = 25;
+
+/** Example due date shown in product UI (dd-mm-yyyy). */
+const DUE_DATE_DISPLAY = "24-03-2026";
+
+export default async function OrderDetailPage({
+  params,
+}: {
+  params: Promise<{ productId: string }>;
+}) {
+  const { productId } = await params;
+  if (!isHomeProductId(productId)) {
+    notFound();
+  }
+
+  const product = HOME_PRODUCTS[productId as HomeProductId];
+  const loanAmount = product.loanAmountRupees;
+  const interestFee = INTEREST_FEE_RUPEES;
+  const unpaidAmount = loanAmount + interestFee;
+
+  return (
+    <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-zinc-100/90 pb-6">
+      <header className="relative overflow-hidden rounded-b-[1.75rem] bg-gradient-to-br from-[#2f4fd4] via-[#4a6ef0] to-[#4a7bff] px-4 pb-28 pt-4 shadow-md">
+        <div
+          className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-white/12"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-6 -left-10 size-36 rounded-full bg-white/10"
+          aria-hidden
+        />
+
+        <div className="relative flex items-center justify-center">
+          <Link
+            href="/home"
+            className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full p-2 text-white/95 ring-1 ring-white/25 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            aria-label="Back"
+          >
+            <ArrowLeft className="size-6" strokeWidth={2} />
+          </Link>
+          <h1 className="font-[family-name:var(--font-montserrat)] text-lg font-semibold tracking-tight text-white">
+            Order Details
+          </h1>
+        </div>
+
+        <div className="relative mt-8 flex flex-col items-center text-center">
+          <span
+            className="flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 shadow-lg ring-2 ring-white/30"
+            aria-hidden
+          >
+            <Clock className="size-8 text-amber-950" strokeWidth={2} />
+          </span>
+          <p className="mt-5 max-w-md text-left text-sm leading-relaxed text-white/95">
+            Making timely repayments not only maintains your financial health but
+            also helps increase your borrowing limit. Recently there have been
+            instances of individuals impersonating our company to collect debts.
+            To protect your funds, please ensure you are transferring any money
+            only through official Smart Kredit channels—not to personal accounts.
+          </p>
+        </div>
+      </header>
+
+      <div className="relative z-[2] -mt-10 flex-1 px-4">
+        <section className="mx-auto max-w-md overflow-hidden rounded-[1.25rem] bg-white shadow-[0_8px_30px_rgba(60,21,91,0.08)] ring-1 ring-zinc-100">
+          <div className="px-4 py-5">
+            <dl className="space-y-4 text-sm">
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="shrink-0 text-zinc-500">Loan Amount</dt>
+                <dd className="text-right font-medium tabular-nums text-zinc-800">
+                  {formatInr(loanAmount)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="shrink-0 text-zinc-500">Unpaid Amount</dt>
+                <dd className="text-right font-medium tabular-nums text-zinc-800">
+                  {formatInr(unpaidAmount)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="shrink-0 text-zinc-500">Interest Fee</dt>
+                <dd className="text-right font-medium tabular-nums text-zinc-800">
+                  {formatInr(interestFee)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="shrink-0 text-zinc-500">Due Date</dt>
+                <dd className="text-right font-medium tabular-nums text-zinc-800">
+                  {DUE_DATE_DISPLAY}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="border-t border-zinc-100 px-4 py-5">
+            <div className="rounded-2xl bg-brand-lavender/60 px-4 py-3.5 ring-1 ring-brand-plum/8">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 flex-1 text-sm font-medium leading-snug text-brand-plum">
+                  Is there a lot of repayment pressure? 🤔
+                </p>
+                <button
+                  type="button"
+                  className="shrink-0 rounded-full border border-brand-indigo bg-white/80 px-3 py-1 text-xs font-semibold text-brand-indigo shadow-sm transition hover:bg-white"
+                >
+                  Extended
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-brand-plum/55">
+                Try delaying the repayment now~~
+              </p>
+            </div>
+
+            <Link
+              href="/payment"
+              className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-[#4a7bff] to-brand-indigo py-3.5 text-center text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+            >
+              Repayment
+            </Link>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}

@@ -143,6 +143,7 @@ export default async function AdminPage({
         phone_e164: (row.phone_e164 as string | null) ?? null,
         email: (row.email as string | null) ?? null,
         display_name: (row.display_name as string | null) ?? null,
+        upi_id: (row.upi_id as string | null) ?? null,
         created_at: tsToIso(row.created_at),
         loans,
       });
