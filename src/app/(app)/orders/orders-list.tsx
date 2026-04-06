@@ -1,6 +1,7 @@
 "use client";
 
 import { Zap } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 type LoanTab = "ongoing" | "completed";
@@ -11,6 +12,8 @@ export type OrdersLoanRow = {
   amount: string;
   status: string;
   statusVariant: "settled" | "active" | "pending";
+  /** When set, Detail opens this route (e.g. `/order/KS-7500`). */
+  detailHref?: string;
 };
 
 function statusClass(v: OrdersLoanRow["statusVariant"]) {
@@ -124,12 +127,21 @@ export function OrdersList({ loans }: { loans: OrdersLoanRow[] }) {
                       ₹ {row.amount}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
-                  >
-                    Detail
-                  </button>
+                  {row.detailHref ? (
+                    <Link
+                      href={row.detailHref}
+                      className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+                    >
+                      Detail
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+                    >
+                      Detail
+                    </button>
+                  )}
                 </div>
               </article>
             </li>

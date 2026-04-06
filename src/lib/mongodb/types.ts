@@ -21,5 +21,7 @@ export type LoanDoc = {
   amount_rupees: number;
   status: string;
   external_ref?: string | null;
+  /** Matches `HomeProductId` when this row is a seeded default product loan. */
+  default_product_key?: string | null;
   created_at: Date;
 };

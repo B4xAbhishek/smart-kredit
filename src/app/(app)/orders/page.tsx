@@ -1,3 +1,5 @@
+import { isHomeProductId } from "@/lib/home-products";
+import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import { getSession } from "@/lib/session";
 import { resolveProfileUserId } from "@/lib/session-profile";
@@ -34,6 +36,7 @@ export default async function OrdersPage() {
 
   if (profileId) {
     try {
+      await ensureDefaultLoansForUser(profileId);
       const db = await getMongoDb();
       const docs = await db
         .collection("loans")
@@ -48,6 +51,7 @@ export default async function OrdersPage() {
           amount_rupees?: number;
           status?: string;
           created_at?: unknown;
+          default_product_key?: string;
         };
         const status = String(row.status ?? "");
         const statusVariant =
@@ -62,12 +66,17 @@ export default async function OrdersPage() {
             : status === "active"
               ? "Active"
               : "Pending";
+        const key = row.default_product_key;
+        const detailHref =
+          key && isHomeProductId(key) ? `/order/${key}` : undefined;
+
         return {
           id: String(doc._id),
           productName: String(row.product_name ?? ""),
           amount: formatAmount(Number(row.amount_rupees)),
           status: label,
           statusVariant,
+          detailHref,
           createdMs: tsToMillis(row.created_at),
         };
       });

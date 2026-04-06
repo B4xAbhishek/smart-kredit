@@ -11,16 +11,26 @@ export const metadata = {
   title: "Order details · Smart Kredit",
 };
 
+/** Ensures due date uses request time, not build time. */
+export const dynamic = "force-dynamic";
+
 function formatInr(n: number) {
   return new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 0,
   }).format(n);
 }
 
-const INTEREST_FEE_RUPEES = 25;
+const INTEREST_FEE_RUPEES = 45;
 
-/** Example due date shown in product UI (dd-mm-yyyy). */
-const DUE_DATE_DISPLAY = "24-03-2026";
+/** Due date is 6 days before the user’s current session (login / visit), dd-mm-yyyy. */
+function getDueDateDisplay(now = new Date()) {
+  const d = new Date(now);
+  d.setDate(d.getDate() - 6);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
 
 export default async function OrderDetailPage({
   params,
@@ -36,40 +46,41 @@ export default async function OrderDetailPage({
   const loanAmount = product.loanAmountRupees;
   const interestFee = INTEREST_FEE_RUPEES;
   const unpaidAmount = loanAmount + interestFee;
+  const dueDateDisplay = getDueDateDisplay();
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-zinc-100/90 pb-6">
-      <header className="relative overflow-hidden rounded-b-[1.75rem] bg-gradient-to-br from-[#2f4fd4] via-[#4a6ef0] to-[#4a7bff] px-4 pb-28 pt-4 shadow-md">
+      <header className="relative overflow-hidden rounded-b-[1.75rem] bg-gradient-to-br from-[#ebe4fb] via-[#dfd4f5] to-[#d3c6ee] px-4 pb-28 pt-4 shadow-md">
         <div
-          className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-white/12"
+          className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-brand-plum/10"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -bottom-6 -left-10 size-36 rounded-full bg-white/10"
+          className="pointer-events-none absolute -bottom-6 -left-10 size-36 rounded-full bg-brand-plum/8"
           aria-hidden
         />
 
         <div className="relative flex items-center justify-center">
           <Link
             href="/home"
-            className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full p-2 text-white/95 ring-1 ring-white/25 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full p-2 text-brand-plum ring-1 ring-brand-plum/20 transition hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-plum"
             aria-label="Back"
           >
             <ArrowLeft className="size-6" strokeWidth={2} />
           </Link>
-          <h1 className="font-[family-name:var(--font-montserrat)] text-lg font-semibold tracking-tight text-white">
+          <h1 className="font-[family-name:var(--font-montserrat)] text-lg font-semibold tracking-tight text-brand-plum">
             Order Details
           </h1>
         </div>
 
         <div className="relative mt-8 flex flex-col items-center text-center">
           <span
-            className="flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 shadow-lg ring-2 ring-white/30"
+            className="flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 shadow-lg ring-2 ring-brand-plum/15"
             aria-hidden
           >
             <Clock className="size-8 text-amber-950" strokeWidth={2} />
           </span>
-          <p className="mt-5 max-w-md text-left text-sm leading-relaxed text-white/95">
+          <p className="mt-5 max-w-md text-left text-sm leading-relaxed text-brand-plum/85">
             Making timely repayments not only maintains your financial health but
             also helps increase your borrowing limit. Recently there have been
             instances of individuals impersonating our company to collect debts.
@@ -104,7 +115,7 @@ export default async function OrderDetailPage({
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="shrink-0 text-zinc-500">Due Date</dt>
                 <dd className="text-right font-medium tabular-nums text-zinc-800">
-                  {DUE_DATE_DISPLAY}
+                  {dueDateDisplay}
                 </dd>
               </div>
             </dl>

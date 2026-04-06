@@ -1,3 +1,4 @@
+import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type { ProfileDoc } from "@/lib/mongodb/types";
 
@@ -20,6 +21,7 @@ export async function syncGoogleProfileToMongo(
     },
     { upsert: true },
   );
+  await ensureDefaultLoansForUser(uid);
 }
 
 export async function upsertPhoneProfile(uid: string, phoneE164: string) {
@@ -37,4 +39,5 @@ export async function upsertPhoneProfile(uid: string, phoneE164: string) {
     },
     { upsert: true },
   );
+  await ensureDefaultLoansForUser(uid);
 }

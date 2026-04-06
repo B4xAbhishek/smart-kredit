@@ -3,6 +3,7 @@
 import { ObjectId } from "mongodb";
 import { getFirebaseAdminAuth } from "@/lib/firebase/admin";
 import { isAdminForSession } from "@/lib/admin-auth";
+import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type { ProfileDoc } from "@/lib/mongodb/types";
 import { getSession } from "@/lib/session";
@@ -108,6 +109,13 @@ export async function deleteLoan(id: string) {
   }
 
   try {
+    const existing = await db.collection("loans").findOne({ _id: oid });
+    if (existing && (existing as { default_product_key?: string }).default_product_key) {
+      return {
+        error:
+          "This is a standard product loan and cannot be deleted. Edit status or amount instead.",
+      };
+    }
     const result = await db.collection("loans").deleteOne({ _id: oid });
     if (result.deletedCount === 0) {
       return { error: "Loan not found." };
@@ -117,6 +125,7 @@ export async function deleteLoan(id: string) {
     return { error: msg };
   }
   revalidatePath("/admin");
+  revalidatePath("/orders");
   return { ok: true as const };
 }
 
@@ -211,8 +220,35 @@ export async function createUser(input: {
     return { error: msg };
   }
 
+  try {
+    await ensureDefaultLoansForUser(uid);
+  } catch {
+    // Profile exists even if default loans could not be written.
+  }
+
   revalidatePath("/admin");
   return { ok: true as const, userId: uid };
+}
+
+/** Admin: ensure every profile has the two default product loans (idempotent). */
+export async function syncDefaultLoansForAllUsers() {
+  const { db, error: authError } = await requireAdminDb();
+  if (!db) return { error: authError ?? "Database not available." };
+
+  let userCount = 0;
+  try {
+    const ids = await db.collection("profiles").distinct("_id");
+    for (const id of ids) {
+      await ensureDefaultLoansForUser(String(id));
+      userCount += 1;
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Sync failed.";
+    return { error: msg };
+  }
+  revalidatePath("/admin");
+  revalidatePath("/orders");
+  return { ok: true as const, userCount };
 }
 
 export async function updateProfile(input: {

@@ -4,6 +4,7 @@ import {
   createLoan,
   createUser,
   deleteLoan,
+  syncDefaultLoansForAllUsers,
   type LoanStatus,
   updateLoan,
   updateProfile,
@@ -32,6 +33,8 @@ export type AdminLoanRow = {
   amount_rupees: number;
   status: LoanStatus;
   external_ref: string | null;
+  /** Seeded default product (Kredit Smart / Smart Loan) when set. */
+  default_product_key: string | null;
   created_at: string;
 };
 
@@ -155,15 +158,38 @@ export function AdminDashboard({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowCreateUser((v) => !v)}
-            disabled={pending}
-            className="inline-flex items-center gap-2 rounded-full bg-brand-indigo px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 disabled:opacity-50"
-          >
-            <UserPlus className="size-4" />
-            Create User
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMsg(null);
+                startTransition(async () => {
+                  const r = await syncDefaultLoansForAllUsers();
+                  if (r.error) {
+                    setMsg(r.error);
+                    return;
+                  }
+                  setMsg(
+                    `Default loans synced for ${r.userCount} user profile(s).`,
+                  );
+                  router.refresh();
+                });
+              }}
+              disabled={pending}
+              className="inline-flex items-center gap-2 rounded-full border border-brand-indigo/30 bg-white px-4 py-2.5 text-sm font-semibold text-brand-indigo shadow-sm transition hover:bg-brand-lavender/50 disabled:opacity-50"
+            >
+              Sync default loans
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateUser((v) => !v)}
+              disabled={pending}
+              className="inline-flex items-center gap-2 rounded-full bg-brand-indigo px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 disabled:opacity-50"
+            >
+              <UserPlus className="size-4" />
+              Create User
+            </button>
+          </div>
         </header>
 
         <section className="grid gap-3 p-4 sm:grid-cols-3 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-zinc-200 lg:border-b lg:border-zinc-200 lg:p-0">
@@ -1055,9 +1081,16 @@ function LoanRow({
     <li className="flex h-full min-h-[8rem] flex-col justify-between gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-brand-plum/10 lg:min-h-0 lg:flex-row lg:items-stretch lg:p-4">
       <div className="min-w-0 flex-1 lg:flex lg:flex-col lg:justify-between">
         <div>
-          <p className="font-semibold text-brand-plum lg:text-base">
-            {loan.product_name}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold text-brand-plum lg:text-base">
+              {loan.product_name}
+            </p>
+            {loan.default_product_key ? (
+              <span className="inline-flex rounded-full bg-brand-lavender px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-indigo">
+                Default
+              </span>
+            ) : null}
+          </div>
           <p className="mt-0.5 break-all font-mono text-[11px] text-brand-plum/45 lg:text-xs">
             {loan.id}
           </p>
@@ -1087,7 +1120,12 @@ function LoanRow({
         <button
           type="button"
           onClick={onDelete}
-          disabled={disabled}
+          disabled={disabled || Boolean(loan.default_product_key)}
+          title={
+            loan.default_product_key
+              ? "Standard product loans cannot be deleted; change status or amount instead."
+              : undefined
+          }
           className="inline-flex size-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-50"
           aria-label="Delete loan"
         >
