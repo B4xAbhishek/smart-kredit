@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   title: "Smart Kredit",
   description: "Your instant loan solution. Loans that keep you moving.",
   applicationName: "Smart Kredit",
+  verification: {
+    google: "v81JzQXF9A5cxpQaR8tSzHLytJCx9fEaMg8asEdVcZ8",
+  },
 };
 
 export const viewport: Viewport = {
