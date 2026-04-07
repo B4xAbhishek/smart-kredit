@@ -27,20 +27,24 @@ export default async function HomePage() {
 
   return (
     <main className="px-4 pt-4">
-      <header className="flex items-start justify-between gap-4 pb-6">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-brand-plum/55">Welcome</p>
-          <div className="mt-1 max-w-[min(100%,20rem)]">
-            <BrandLogo compact />
-          </div>
+      <header className="space-y-2 pb-8">
+        <p className="text-sm font-medium leading-none text-brand-plum/55">
+          Welcome
+        </p>
+        <div className="flex min-h-[4.5rem] items-center justify-between gap-3 sm:min-h-20">
+          <BrandLogo
+            compact
+            className="min-w-0 flex-1"
+            boxClassName="w-auto max-w-none"
+          />
+          <button
+            type="button"
+            className="shrink-0 self-center cursor-pointer rounded-full p-2.5 text-brand-plum ring-1 ring-brand-plum/10 transition hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+            aria-label="Notifications"
+          >
+            <Bell className="size-5" strokeWidth={1.75} />
+          </button>
         </div>
-        <button
-          type="button"
-          className="cursor-pointer rounded-full p-2.5 text-brand-plum ring-1 ring-brand-plum/10 transition hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
-          aria-label="Notifications"
-        >
-          <Bell className="size-5" strokeWidth={1.75} />
-        </button>
       </header>
 
       {/* Featured loan card */}
