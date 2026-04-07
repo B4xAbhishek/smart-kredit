@@ -30,10 +30,11 @@ function GoogleIcon() {
 }
 
 type Props = {
-  nextPath: string;
+  /** `next` query param; when absent or `/home`, server `redirectTo` is used after Google sign-in. */
+  explicitNext: string | null;
 };
 
-export function FirebaseGoogleButton({ nextPath }: Props) {
+export function FirebaseGoogleButton({ explicitNext }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export function FirebaseGoogleButton({ nextPath }: Props) {
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
+        redirectTo?: "/home" | "/orders";
       };
       if (!res.ok) {
         const msg =
@@ -66,7 +68,11 @@ export function FirebaseGoogleButton({ nextPath }: Props) {
         throw new Error(msg);
       }
       await signOut(auth);
-      router.replace(nextPath);
+      const dest =
+        explicitNext && explicitNext !== "/home"
+          ? explicitNext
+          : (data.redirectTo ?? "/home");
+      router.replace(dest);
       router.refresh();
     } catch (e) {
       const message =
@@ -82,7 +88,7 @@ export function FirebaseGoogleButton({ nextPath }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [router, nextPath]);
+  }, [router, explicitNext]);
 
   if (!firebaseReady) {
     return (

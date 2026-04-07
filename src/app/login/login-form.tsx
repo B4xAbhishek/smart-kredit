@@ -26,7 +26,8 @@ function toE164(digits: string) {
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") ?? "/home";
+  const explicitNext = searchParams.get("next");
+  const nextPath = explicitNext ?? "/home";
 
   const [phoneDigits, setPhoneDigits] = useState("");
   const [otp, setOtp] = useState("");
@@ -87,7 +88,11 @@ export function LoginForm() {
       setError(res.error);
       return;
     }
-    router.replace(nextPath);
+    const dest =
+      explicitNext && explicitNext !== "/home"
+        ? explicitNext
+        : (res.redirectTo ?? "/home");
+    router.replace(dest);
     router.refresh();
   };
 
@@ -200,17 +205,24 @@ export function LoginForm() {
         <div className="h-px flex-1 bg-brand-plum/10" />
       </div>
 
-      <FirebaseGoogleButton nextPath={nextPath} />
+      <FirebaseGoogleButton explicitNext={explicitNext} />
 
-      <p className="text-center text-xs text-brand-plum/50">
-        By continuing you agree to Smart Kredit&apos;s terms. SMS charges may
-        apply.{" "}
+      <p className="text-center text-xs leading-relaxed text-brand-plum/50">
+        By continuing you agree to our{" "}
         <Link
-          href="#"
+          href="/terms"
           className="font-medium text-brand-indigo underline-offset-2 hover:underline"
         >
-          Privacy
+          Terms &amp; Conditions
+        </Link>{" "}
+        and{" "}
+        <Link
+          href="/privacy"
+          className="font-medium text-brand-indigo underline-offset-2 hover:underline"
+        >
+          Privacy Policy
         </Link>
+        . SMS charges may apply.
       </p>
     </form>
   );

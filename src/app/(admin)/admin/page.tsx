@@ -1,5 +1,6 @@
 import { isAdminForSession } from "@/lib/admin-auth";
 import { getMongoDb } from "@/lib/mongodb/client";
+import type { HomeProductId } from "@/lib/home-products";
 import type { ProfileDoc } from "@/lib/mongodb/types";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
@@ -139,6 +140,11 @@ export default async function AdminPage({
         };
       });
 
+      const hpe = row.home_product_enabled as
+        | Partial<Record<HomeProductId, boolean>>
+        | null
+        | undefined;
+
       users.push({
         id: uid,
         phone: (row.phone as string | null) ?? null,
@@ -146,6 +152,7 @@ export default async function AdminPage({
         email: (row.email as string | null) ?? null,
         display_name: (row.display_name as string | null) ?? null,
         upi_id: (row.upi_id as string | null) ?? null,
+        home_product_enabled: hpe ?? null,
         created_at: tsToIso(row.created_at),
         loans,
       });

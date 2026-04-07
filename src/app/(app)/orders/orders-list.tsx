@@ -127,7 +127,7 @@ export function OrdersList({ loans }: { loans: OrdersLoanRow[] }) {
                       ₹ {row.amount}
                     </p>
                   </div>
-                  {row.detailHref ? (
+                  {row.statusVariant === "settled" ? null : row.detailHref ? (
                     <Link
                       href={row.detailHref}
                       className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"

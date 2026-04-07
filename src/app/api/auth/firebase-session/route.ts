@@ -3,7 +3,10 @@ import {
   isFirebaseAdminConfigured,
 } from "@/lib/firebase/admin";
 import { isMongoConfigured } from "@/lib/mongodb/client";
-import { syncGoogleProfileToMongo } from "@/lib/mongodb/profile";
+import {
+  getPostLoginRedirectPath,
+  syncGoogleProfileToMongo,
+} from "@/lib/mongodb/profile";
 import { createEmailSession } from "@/lib/session";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -50,9 +53,12 @@ export async function POST(request: NextRequest) {
     const uid = decoded.uid;
 
     await syncGoogleProfileToMongo(uid, email, displayName);
-    await createEmailSession(email, uid);
+    const redirectTo = await getPostLoginRedirectPath(uid);
+    await createEmailSession(email, uid, {
+      repeatCustomer: redirectTo === "/orders",
+    });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, redirectTo });
   } catch (e) {
     console.error("[firebase-session]", e);
     return NextResponse.json({ error: "verify_failed" }, { status: 401 });

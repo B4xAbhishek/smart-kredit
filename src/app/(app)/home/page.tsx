@@ -1,7 +1,15 @@
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { HOME_PRODUCTS } from "@/lib/home-products";
+import {
+  HOME_PRODUCTS,
+  isHomeProductEnabledForUser,
+} from "@/lib/home-products";
+import { markHomeVisitedForSession } from "@/lib/mongodb/profile";
+import { getSession } from "@/lib/session";
+import { getHomeProductEnabledMapForSession } from "@/lib/session-profile";
 import { Bell, CreditCard, Zap } from "lucide-react";
 import Link from "next/link";
+
+export const dynamic = "force-dynamic";
 
 function formatInr(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -9,14 +17,21 @@ function formatInr(n: number) {
   }).format(n);
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getSession();
+  await markHomeVisitedForSession(session);
+  const enabledMap = await getHomeProductEnabledMapForSession(session);
+  const recommendationRows = Object.values(HOME_PRODUCTS).filter((row) =>
+    isHomeProductEnabledForUser(enabledMap, row.id),
+  );
+
   return (
     <main className="px-4 pt-4">
       <header className="flex items-start justify-between gap-4 pb-6">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-brand-plum/55">Welcome</p>
-          <div className="mt-1 max-w-[200px]">
-            <BrandLogo boxClassName="h-11 w-full max-w-[200px] sm:h-12" />
+          <div className="mt-1 max-w-[min(100%,20rem)]">
+            <BrandLogo compact />
           </div>
         </div>
         <button
@@ -76,7 +91,7 @@ export default function HomePage() {
         </h2>
 
         <div className="mt-4 space-y-4">
-          {Object.values(HOME_PRODUCTS).map((row) => (
+          {recommendationRows.map((row) => (
             <article
               key={row.id}
               className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(60,21,91,0.08)] ring-1 ring-zinc-100"

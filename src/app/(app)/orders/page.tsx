@@ -1,8 +1,11 @@
-import { isHomeProductId } from "@/lib/home-products";
+import { isHomeProductEnabledForUser, isHomeProductId } from "@/lib/home-products";
 import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import { getSession } from "@/lib/session";
-import { resolveProfileUserId } from "@/lib/session-profile";
+import {
+  getHomeProductEnabledMapForSession,
+  resolveProfileUserId,
+} from "@/lib/session-profile";
 import { OrdersList, type OrdersLoanRow } from "./orders-list";
 
 export const metadata = {
@@ -33,6 +36,7 @@ export default async function OrdersPage() {
 
   const session = await getSession();
   const profileId = await resolveProfileUserId(session);
+  const homeProductEnabled = await getHomeProductEnabledMapForSession(session);
 
   if (profileId) {
     try {
@@ -68,7 +72,12 @@ export default async function OrdersPage() {
               : "Pending";
         const key = row.default_product_key;
         const detailHref =
-          key && isHomeProductId(key) ? `/order/${key}` : undefined;
+          status !== "settled" &&
+          key &&
+          isHomeProductId(key) &&
+          isHomeProductEnabledForUser(homeProductEnabled, key)
+            ? `/order/${key}`
+            : undefined;
 
         return {
           id: String(doc._id),

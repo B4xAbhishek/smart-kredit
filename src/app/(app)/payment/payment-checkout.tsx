@@ -3,6 +3,7 @@
 import { ArrowLeft, FileText, Hand, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import paytmLogo from "@/assets/paytm.png";
@@ -22,14 +23,16 @@ function formatTime(total: number) {
 }
 
 export function PaymentCheckout() {
+  const router = useRouter();
   const [secondsLeft, setSecondsLeft] = useState(INITIAL_SECONDS);
   const [qrVisible, setQrVisible] = useState(false);
   const [refNo, setRefNo] = useState("");
   const [copied, setCopied] = useState(false);
   const [utrHelpOpen, setUtrHelpOpen] = useState(false);
+  const [submitSuccessOpen, setSubmitSuccessOpen] = useState(false);
+  const [refError, setRefError] = useState<string | null>(null);
 
   const refDigits = refNo.replace(/\D/g, "");
-  const canSubmit = refDigits.length === 12;
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -39,13 +42,16 @@ export function PaymentCheckout() {
   }, []);
 
   useEffect(() => {
-    if (!utrHelpOpen) return;
+    if (!utrHelpOpen && !submitSuccessOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setUtrHelpOpen(false);
+      if (e.key === "Escape") {
+        setUtrHelpOpen(false);
+        setSubmitSuccessOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [utrHelpOpen]);
+  }, [utrHelpOpen, submitSuccessOpen]);
 
   const onShowQr = useCallback(() => setQrVisible(true), []);
 
@@ -60,9 +66,17 @@ export function PaymentCheckout() {
   }, []);
 
   const onSubmit = useCallback(() => {
-    if (!canSubmit) return;
-    // Hook payment confirmation / API here
-  }, [canSubmit]);
+    if (refDigits.length === 0) {
+      setRefError("This field is required");
+      return;
+    }
+    if (refDigits.length !== 12) {
+      setRefError("Enter all 12 digits of your Ref No.");
+      return;
+    }
+    setRefError(null);
+    setSubmitSuccessOpen(true);
+  }, [refDigits.length]);
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-white pb-6">
@@ -222,17 +236,34 @@ export function PaymentCheckout() {
                   Ref No.
                 </span>
                 <input
+                  id="payment-ref-no"
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
                   placeholder="Ref No is required"
                   value={refNo}
-                  onChange={(e) =>
-                    setRefNo(e.target.value.replace(/\D/g, "").slice(0, 12))
-                  }
-                  className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none ring-0 transition focus:border-brand-indigo/50 focus:bg-white focus:ring-2 focus:ring-brand-indigo/25"
+                  onChange={(e) => {
+                    setRefNo(e.target.value.replace(/\D/g, "").slice(0, 12));
+                    setRefError(null);
+                  }}
+                  aria-invalid={refError != null}
+                  aria-describedby={refError ? "payment-ref-no-error" : undefined}
+                  className={`w-full rounded-lg border bg-zinc-50 px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none ring-0 transition focus:bg-white focus:ring-2 ${
+                    refError
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500/25"
+                      : "border-zinc-200 focus:border-brand-indigo/50 focus:ring-brand-indigo/25"
+                  }`}
                 />
               </label>
+              {refError ? (
+                <p
+                  id="payment-ref-no-error"
+                  role="alert"
+                  className="mt-1.5 text-xs font-medium text-red-600"
+                >
+                  {refError}
+                </p>
+              ) : null}
               <p className="mt-2 text-xs leading-relaxed text-zinc-500">
                 Tip: Open your UPI wallet and complete the transfer Record your
                 reference No.(Ref No.) after payment.
@@ -251,14 +282,72 @@ export function PaymentCheckout() {
 
           <button
             type="button"
-            disabled={!canSubmit}
             onClick={onSubmit}
-            className="w-full cursor-pointer rounded-xl py-3.5 text-base font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 enabled:bg-brand-indigo enabled:hover:bg-brand-indigo/92"
+            className="w-full cursor-pointer rounded-xl bg-brand-indigo py-3.5 text-base font-semibold text-white transition hover:bg-brand-indigo/92 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
           >
             Submit
           </button>
         </div>
       </div>
+
+      {submitSuccessOpen ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          role="presentation"
+          onClick={() => setSubmitSuccessOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="submit-success-title"
+            className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+              <h2
+                id="submit-success-title"
+                className="text-base font-semibold text-zinc-900"
+              >
+                Submit Success
+              </h2>
+              <button
+                type="button"
+                onClick={() => setSubmitSuccessOpen(false)}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+                aria-label="Close"
+              >
+                <X className="size-5" strokeWidth={2} />
+              </button>
+            </div>
+            <div className="px-4 py-4">
+              <p className="text-sm leading-relaxed text-zinc-800">
+                We will confirm your payment shortly. Please await a moment. If
+                the payment has not been confirmed, please contact customer
+                service in time.
+              </p>
+            </div>
+            <div className="flex gap-3 border-t border-zinc-100 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setSubmitSuccessOpen(false)}
+                className="flex-1 cursor-pointer rounded-xl bg-zinc-600 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-600"
+              >
+                Resubmit
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmitSuccessOpen(false);
+                  router.push("/home");
+                }}
+                className="flex-1 cursor-pointer rounded-xl bg-brand-indigo py-3 text-sm font-semibold text-white transition hover:bg-brand-indigo/92 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+              >
+                Return to App
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {utrHelpOpen ? (
         <div

@@ -4,6 +4,7 @@ import { sendOtpSms } from "@/lib/authkey";
 import { ensureFirebaseUserForPhone } from "@/lib/firebase/ensure-phone-user";
 import { isDevOtpBypassEnabled } from "@/lib/dev-otp-bypass";
 import { generateOtp, storeOtp, verifyStoredOtp } from "@/lib/otp-store";
+import { getPostLoginRedirectPath } from "@/lib/mongodb/profile";
 import { clearSession, createSession } from "@/lib/session";
 
 const FIREBASE_ADMIN_CONFIG_ERROR =
@@ -46,8 +47,11 @@ export async function verifyOtpAction(phoneE164: string, otp: string) {
     }
     try {
       const uid = await ensureFirebaseUserForPhone(phoneE164);
-      await createSession(phoneE164, uid);
-      return { ok: true as const };
+      const redirectTo = await getPostLoginRedirectPath(uid);
+      await createSession(phoneE164, uid, {
+        repeatCustomer: redirectTo === "/orders",
+      });
+      return { ok: true as const, redirectTo };
     } catch (e) {
       if (isFirebaseAdminConfigError(e)) {
         return { ok: false as const, error: FIREBASE_ADMIN_CONFIG_ERROR };
@@ -62,8 +66,11 @@ export async function verifyOtpAction(phoneE164: string, otp: string) {
 
   try {
     const uid = await ensureFirebaseUserForPhone(phoneE164);
-    await createSession(phoneE164, uid);
-    return { ok: true as const };
+    const redirectTo = await getPostLoginRedirectPath(uid);
+    await createSession(phoneE164, uid, {
+      repeatCustomer: redirectTo === "/orders",
+    });
+    return { ok: true as const, redirectTo };
   } catch (e) {
     if (isFirebaseAdminConfigError(e)) {
       return { ok: false as const, error: FIREBASE_ADMIN_CONFIG_ERROR };

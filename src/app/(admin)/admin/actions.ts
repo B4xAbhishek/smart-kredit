@@ -5,6 +5,8 @@ import { getFirebaseAdminAuth } from "@/lib/firebase/admin";
 import { isAdminForSession } from "@/lib/admin-auth";
 import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
+import type { HomeProductId } from "@/lib/home-products";
+import { HOME_PRODUCT_IDS } from "@/lib/home-products";
 import type { ProfileDoc } from "@/lib/mongodb/types";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
@@ -283,5 +285,41 @@ export async function updateProfile(input: {
     return { error: msg };
   }
   revalidatePath("/admin");
+  return { ok: true as const };
+}
+
+export async function updateHomeProductEnabled(input: {
+  userId: string;
+  productId: HomeProductId;
+  enabled: boolean;
+}) {
+  const { db, error: authError } = await requireAdminDb();
+  if (!db) return { error: authError ?? "Database not available." };
+
+  if (!HOME_PRODUCT_IDS.includes(input.productId)) {
+    return { error: "Invalid product." };
+  }
+
+  try {
+    const result = await db.collection<ProfileDoc>("profiles").updateOne(
+      { _id: input.userId },
+      {
+        $set: {
+          updated_at: new Date(),
+          [`home_product_enabled.${input.productId}`]: input.enabled,
+        },
+      },
+    );
+    if (result.matchedCount === 0) {
+      return { error: "Profile not found." };
+    }
+  } catch (e) {
+    const msg =
+      e instanceof Error ? e.message : "Failed to update product visibility.";
+    return { error: msg };
+  }
+  revalidatePath("/admin");
+  revalidatePath("/home");
+  revalidatePath("/orders");
   return { ok: true as const };
 }

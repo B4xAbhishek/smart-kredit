@@ -5,9 +5,9 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED = [
   "/home",
   "/orders",
+  "/order",
   "/account",
   "/payment",
-  "/agreement",
   "/admin",
 ];
 
@@ -30,7 +30,7 @@ export async function updateSession(request: NextRequest) {
 
   if (isAuthed && path === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/home";
+    url.pathname = session?.repeat_customer ? "/orders" : "/home";
     url.search = "";
     return NextResponse.redirect(url);
   }

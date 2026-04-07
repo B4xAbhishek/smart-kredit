@@ -1,3 +1,4 @@
+import type { HomeProductId } from "@/lib/home-products";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type { ProfileDoc } from "@/lib/mongodb/types";
 import type { SessionPayload } from "@/lib/session-types";
@@ -20,4 +21,19 @@ export async function resolveProfileUserId(
     }
   }
   return null;
+}
+
+/** Admin-controlled visibility for Home “More recommendations” (omit/`true` = shown). */
+export async function getHomeProductEnabledMapForSession(
+  session: SessionPayload | null,
+): Promise<Partial<Record<HomeProductId, boolean>> | null> {
+  const uid = await resolveProfileUserId(session);
+  if (!uid) return null;
+  try {
+    const db = await getMongoDb();
+    const doc = await db.collection<ProfileDoc>("profiles").findOne({ _id: uid });
+    return doc?.home_product_enabled ?? null;
+  } catch {
+    return null;
+  }
 }

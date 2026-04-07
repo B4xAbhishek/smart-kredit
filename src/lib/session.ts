@@ -41,11 +41,16 @@ function verify(token: string): SessionPayload | null {
 }
 
 /** OTP login: stores phone + Firebase Auth UID. */
-export async function createSession(phone: string, firebaseUid: string) {
+export async function createSession(
+  phone: string,
+  firebaseUid: string,
+  opts?: { repeatCustomer?: boolean },
+) {
   const now = Math.floor(Date.now() / 1000);
   const token = sign({
     phone,
     userId: firebaseUid,
+    ...(opts?.repeatCustomer ? { repeat_customer: true } : {}),
     iat: now,
     exp: now + MAX_AGE,
   });
@@ -60,9 +65,19 @@ export async function createSession(phone: string, firebaseUid: string) {
 }
 
 /** Google sign-in: email + Firebase Auth UID. */
-export async function createEmailSession(email: string, firebaseUid: string) {
+export async function createEmailSession(
+  email: string,
+  firebaseUid: string,
+  opts?: { repeatCustomer?: boolean },
+) {
   const now = Math.floor(Date.now() / 1000);
-  const token = sign({ email, userId: firebaseUid, iat: now, exp: now + MAX_AGE });
+  const token = sign({
+    email,
+    userId: firebaseUid,
+    ...(opts?.repeatCustomer ? { repeat_customer: true } : {}),
+    iat: now,
+    exp: now + MAX_AGE,
+  });
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -85,4 +100,27 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function clearSession() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
+}
+
+/** Updates `repeat_customer` in the session cookie (e.g. after first `/home` visit). */
+export async function refreshSessionRepeatCustomer(repeat: boolean) {
+  const current = await getSession();
+  if (!current?.userId) return;
+  const now = Math.floor(Date.now() / 1000);
+  const token = sign({
+    phone: current.phone,
+    email: current.email,
+    userId: current.userId,
+    ...(repeat ? { repeat_customer: true } : {}),
+    iat: current.iat,
+    exp: current.exp,
+  });
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: MAX_AGE,
+  });
 }

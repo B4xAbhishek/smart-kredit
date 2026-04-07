@@ -24,3 +24,14 @@ export const HOME_PRODUCTS: Record<HomeProductId, HomeProductDetail> = {
 export function isHomeProductId(id: string): id is HomeProductId {
   return id in HOME_PRODUCTS;
 }
+
+/** All home recommendation product ids (Kredit Smart, Smart Loan). */
+export const HOME_PRODUCT_IDS = Object.keys(HOME_PRODUCTS) as HomeProductId[];
+
+/** Default: visible. Only explicit `false` hides a product. */
+export function isHomeProductEnabledForUser(
+  map: Partial<Record<HomeProductId, boolean>> | null | undefined,
+  productId: HomeProductId,
+): boolean {
+  return map?.[productId] !== false;
+}

@@ -1,8 +1,11 @@
 import {
   HOME_PRODUCTS,
+  isHomeProductEnabledForUser,
   isHomeProductId,
   type HomeProductId,
 } from "@/lib/home-products";
+import { getSession } from "@/lib/session";
+import { getHomeProductEnabledMapForSession } from "@/lib/session-profile";
 import { ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -39,6 +42,12 @@ export default async function OrderDetailPage({
 }) {
   const { productId } = await params;
   if (!isHomeProductId(productId)) {
+    notFound();
+  }
+
+  const session = await getSession();
+  const enabledMap = await getHomeProductEnabledMapForSession(session);
+  if (!isHomeProductEnabledForUser(enabledMap, productId)) {
     notFound();
   }
 

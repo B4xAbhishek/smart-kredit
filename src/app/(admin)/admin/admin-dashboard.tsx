@@ -6,9 +6,15 @@ import {
   deleteLoan,
   syncDefaultLoansForAllUsers,
   type LoanStatus,
+  updateHomeProductEnabled,
   updateLoan,
   updateProfile,
 } from "./actions";
+import {
+  HOME_PRODUCTS,
+  HOME_PRODUCT_IDS,
+  type HomeProductId,
+} from "@/lib/home-products";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -45,6 +51,8 @@ export type AdminUserRow = {
   email: string | null;
   display_name: string | null;
   upi_id: string | null;
+  /** Per-user Home recommendations; omitted/`true` = shown, `false` = hidden. */
+  home_product_enabled: Partial<Record<HomeProductId, boolean>> | null;
   created_at: string;
   loans: AdminLoanRow[] | null;
 };
@@ -494,6 +502,15 @@ export function AdminDashboard({
               }
               runAction(() => deleteLoan(id));
             }}
+            onHomeProductToggle={(productId, enabled) =>
+              runAction(() =>
+                updateHomeProductEnabled({
+                  userId: u.id,
+                  productId,
+                  enabled,
+                }),
+              )
+            }
           />
         ) : null,
       )}
@@ -647,6 +664,7 @@ function LoanPanel({
   onCreate,
   onUpdate,
   onDelete,
+  onHomeProductToggle,
 }: {
   user: AdminUserRow;
   disabled: boolean;
@@ -666,6 +684,7 @@ function LoanPanel({
     },
   ) => void;
   onDelete: (id: string) => void;
+  onHomeProductToggle: (productId: HomeProductId, enabled: boolean) => void;
 }) {
   const loans = user.loans ?? [];
   const [adding, setAdding] = useState(false);
@@ -696,6 +715,55 @@ function LoanPanel({
             Add loan
           </button>
         ) : null}
+      </div>
+
+      <div className="mt-4 rounded-xl border border-brand-plum/12 bg-brand-lavender/25 p-4 lg:p-5">
+        <h3 className="text-sm font-semibold text-brand-plum">
+          Home · More recommendations
+        </h3>
+        <p className="mt-1 text-xs text-brand-plum/55">
+          Control whether Kredit Smart and Smart Loan appear for this user on the
+          home screen.
+        </p>
+        <ul className="mt-3 space-y-3">
+          {HOME_PRODUCT_IDS.map((pid) => {
+            const meta = HOME_PRODUCTS[pid];
+            const on = user.home_product_enabled?.[pid] !== false;
+            return (
+              <li
+                key={pid}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white/90 px-3 py-2.5 ring-1 ring-brand-plum/10"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-brand-plum">
+                    {meta.productName}
+                  </p>
+                  <p className="font-mono text-[11px] text-brand-plum/45">
+                    {pid}
+                  </p>
+                </div>
+                <label className="inline-flex cursor-pointer items-center gap-2">
+                  <span className="text-xs font-medium text-zinc-500">
+                    {on ? "On" : "Off"}
+                  </span>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={on}
+                    disabled={disabled}
+                    onChange={(e) =>
+                      onHomeProductToggle(pid, e.target.checked)
+                    }
+                    className="peer sr-only"
+                  />
+                  <span className="relative inline-block h-7 w-12 shrink-0 rounded-full bg-zinc-300 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-indigo peer-disabled:opacity-50 peer-checked:[&>span]:translate-x-5">
+                    <span className="absolute left-1 top-1 block size-5 rounded-full bg-white shadow transition-transform" />
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       {adding ? (
