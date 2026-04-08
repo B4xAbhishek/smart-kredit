@@ -31,6 +31,13 @@ function tsToMillis(v: unknown): number {
   return 0;
 }
 
+function normalizeLoanStatus(status: unknown): "settled" | "active" | "pending" {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  if (normalized === "settled") return "settled";
+  if (normalized === "active") return "active";
+  return "pending";
+}
+
 export default async function OrdersPage() {
   let loans: OrdersLoanRow[] = [];
 
@@ -57,13 +64,8 @@ export default async function OrdersPage() {
           created_at?: unknown;
           default_product_key?: string;
         };
-        const status = String(row.status ?? "");
-        const statusVariant =
-          status === "settled"
-            ? ("settled" as const)
-            : status === "active"
-              ? ("active" as const)
-              : ("pending" as const);
+        const status = normalizeLoanStatus(row.status);
+        const statusVariant = status;
         const label =
           status === "settled"
             ? "Settled"

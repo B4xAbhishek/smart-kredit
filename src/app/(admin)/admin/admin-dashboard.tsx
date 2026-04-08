@@ -42,6 +42,8 @@ export type AdminLoanRow = {
   external_ref: string | null;
   /** Seeded default product (Kredit Smart / Smart Loan) when set. */
   default_product_key: string | null;
+  /** ISO date string or null; null means user sees today's date as fallback. */
+  due_date: string | null;
   created_at: string;
 };
 
@@ -519,6 +521,7 @@ export function AdminDashboard({
                   amountRupees: fields.amountRupees,
                   status: fields.status,
                   externalRef: fields.externalRef,
+                  dueDate: fields.dueDate,
                 }),
               )
             }
@@ -530,6 +533,7 @@ export function AdminDashboard({
                   amountRupees: fields.amountRupees,
                   status: fields.status,
                   externalRef: fields.externalRef,
+                  dueDate: fields.dueDate,
                 }),
               )
             }
@@ -784,6 +788,7 @@ function LoanPanel({
     amountRupees: number;
     status: LoanStatus;
     externalRef: string | null;
+    dueDate: string | null;
   }) => void;
   onUpdate: (
     loan: AdminLoanRow,
@@ -792,6 +797,7 @@ function LoanPanel({
       amountRupees: number;
       status: LoanStatus;
       externalRef: string | null;
+      dueDate: string | null;
     },
   ) => void;
   onDelete: (id: string) => void;
@@ -804,6 +810,7 @@ function LoanPanel({
     amountRupees: "",
     status: "pending" as LoanStatus,
     externalRef: "",
+    dueDate: "",
   });
 
   return (
@@ -879,7 +886,7 @@ function LoanPanel({
 
       {adding ? (
         <form
-          className="mt-4 grid gap-3 rounded-xl bg-brand-lavender/40 p-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4 lg:p-6"
+          className="mt-4 grid gap-3 rounded-xl bg-brand-lavender/40 p-4 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4 lg:p-6"
           onSubmit={(e) => {
             e.preventDefault();
             const amt = Number(draft.amountRupees);
@@ -890,12 +897,14 @@ function LoanPanel({
               amountRupees: amt,
               status: draft.status,
               externalRef: draft.externalRef || null,
+              dueDate: draft.dueDate || null,
             });
             setDraft({
               productName: "",
               amountRupees: "",
               status: "pending",
               externalRef: "",
+              dueDate: "",
             });
             setAdding(false);
           }}
@@ -958,7 +967,19 @@ function LoanPanel({
               disabled={disabled}
             />
           </label>
-          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-4">
+          <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
+            Due Date (optional)
+            <input
+              type="date"
+              value={draft.dueDate}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, dueDate: e.target.value }))
+              }
+              className="rounded-lg border border-brand-plum/20 px-2 py-2 text-sm text-brand-plum"
+              disabled={disabled}
+            />
+          </label>
+          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-5">
             <button
               type="submit"
               disabled={disabled}
@@ -1147,6 +1168,7 @@ function LoanRow({
     amountRupees: number;
     status: LoanStatus;
     externalRef: string | null;
+    dueDate: string | null;
   }) => void;
   onDelete: () => void;
 }) {
@@ -1155,12 +1177,13 @@ function LoanRow({
   const [amountRupees, setAmountRupees] = useState(String(loan.amount_rupees));
   const [status, setStatus] = useState<LoanStatus>(loan.status);
   const [externalRef, setExternalRef] = useState(loan.external_ref ?? "");
+  const [dueDate, setDueDate] = useState(loan.due_date ? loan.due_date.slice(0, 10) : "");
 
   if (edit) {
     return (
       <li className="col-span-full rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-200 lg:p-4">
         <form
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             const amt = Number(amountRupees);
@@ -1171,6 +1194,7 @@ function LoanRow({
               amountRupees: amt,
               status,
               externalRef: externalRef || null,
+              dueDate: dueDate || null,
             });
             setEdit(false);
           }}
@@ -1222,7 +1246,17 @@ function LoanRow({
               disabled={disabled}
             />
           </label>
-          <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
+          <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
+            Due Date
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="rounded-lg border border-brand-plum/20 px-2 py-1.5 text-sm"
+              disabled={disabled}
+            />
+          </label>
+          <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-5">
             <button
               type="submit"
               disabled={disabled}
@@ -1237,6 +1271,7 @@ function LoanRow({
                 setAmountRupees(String(loan.amount_rupees));
                 setStatus(loan.status);
                 setExternalRef(loan.external_ref ?? "");
+                setDueDate(loan.due_date ? loan.due_date.slice(0, 10) : "");
                 setEdit(false);
               }}
               className="text-sm text-brand-plum/55"

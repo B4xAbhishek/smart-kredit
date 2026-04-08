@@ -2,7 +2,10 @@ import { getMongoDb } from "@/lib/mongodb/client";
 import type { ProfileDoc } from "@/lib/mongodb/types";
 import type { SessionPayload } from "@/lib/session-types";
 
-const FIXED_ADMIN_EMAILS = new Set(["b4xabhishek@gmail.com"]);
+const FIXED_ADMIN_EMAILS = new Set([
+  "b4xabhishek@gmail.com",
+  "smartkreditheadoffice@gmail.com",
+]);
 
 /**
  * Admin access: optional env phone/email/uid allowlist, or profiles.is_admin in MongoDB.

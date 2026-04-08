@@ -4,10 +4,12 @@ import {
   isHomeProductId,
   type HomeProductId,
 } from "@/lib/home-products";
+import { getMongoDb } from "@/lib/mongodb/client";
 import { getSession } from "@/lib/session";
 import {
   areHomeProductsGloballyEnabled,
   getHomeProductEnabledMapForSession,
+  resolveProfileUserId,
 } from "@/lib/session-profile";
 import { ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
@@ -28,14 +30,33 @@ function formatInr(n: number) {
 
 const INTEREST_FEE_RUPEES = 45;
 
-/** Due date is 6 days before the user’s current session (login / visit), dd-mm-yyyy. */
-function getDueDateDisplay(now = new Date()) {
-  const d = new Date(now);
-  d.setDate(d.getDate() - 6);
+/** Formats a Date as dd-mm-yyyy. */
+function formatDateDmy(d: Date) {
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
   return `${day}-${month}-${year}`;
+}
+
+/** Returns the admin-set due date for this loan, or today’s date as fallback. */
+async function getLoanDueDate(
+  userId: string | null,
+  defaultProductKey: string,
+): Promise<string> {
+  if (!userId) return formatDateDmy(new Date());
+  try {
+    const db = await getMongoDb();
+    const loan = await db.collection("loans").findOne({
+      userId,
+      default_product_key: defaultProductKey,
+    });
+    if (loan && loan.due_date) {
+      return formatDateDmy(new Date(loan.due_date as Date));
+    }
+  } catch {
+    // fall through to default
+  }
+  return formatDateDmy(new Date());
 }
 
 export default async function OrderDetailPage({
@@ -58,11 +79,12 @@ export default async function OrderDetailPage({
     notFound();
   }
 
+  const userId = await resolveProfileUserId(session);
   const product = HOME_PRODUCTS[productId as HomeProductId];
   const loanAmount = product.loanAmountRupees;
   const interestFee = INTEREST_FEE_RUPEES;
   const unpaidAmount = loanAmount + interestFee;
-  const dueDateDisplay = getDueDateDisplay();
+  const dueDateDisplay = await getLoanDueDate(userId, productId);
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-zinc-100/90 pb-6">

@@ -133,6 +133,7 @@ export default async function AdminPage({
           external_ref?: string | null;
           created_at?: unknown;
           default_product_key?: string | null;
+          due_date?: Date | null;
         };
         return {
           id: String(ld._id),
@@ -141,6 +142,7 @@ export default async function AdminPage({
           status: l.status as AdminLoanRow["status"],
           external_ref: (l.external_ref as string | null) ?? null,
           default_product_key: l.default_product_key ?? null,
+          due_date: l.due_date ? l.due_date.toISOString() : null,
           created_at: tsToIso(l.created_at),
         };
       });

@@ -38,17 +38,21 @@ export async function createLoan(input: {
   amountRupees: number;
   status: LoanStatus;
   externalRef?: string | null;
+  /** ISO date string (yyyy-mm-dd) or null/undefined to use login-date fallback. */
+  dueDate?: string | null;
 }) {
   const { db, error: authError } = await requireAdminDb();
   if (!db) return { error: authError ?? "Database not available." };
 
   try {
+    const dueDateValue = input.dueDate ? new Date(input.dueDate) : null;
     await db.collection("loans").insertOne({
       userId: input.userId,
       product_name: input.productName.trim(),
       amount_rupees: input.amountRupees,
       status: input.status,
       external_ref: input.externalRef?.trim() || null,
+      due_date: dueDateValue,
       created_at: new Date(),
     });
   } catch (e) {
@@ -65,6 +69,8 @@ export async function updateLoan(input: {
   amountRupees: number;
   status: LoanStatus;
   externalRef?: string | null;
+  /** ISO date string (yyyy-mm-dd) or null/undefined to use login-date fallback. */
+  dueDate?: string | null;
 }) {
   const { db, error: authError } = await requireAdminDb();
   if (!db) return { error: authError ?? "Database not available." };
@@ -77,6 +83,7 @@ export async function updateLoan(input: {
   }
 
   try {
+    const dueDateValue = input.dueDate ? new Date(input.dueDate) : null;
     const result = await db.collection("loans").updateOne(
       { _id: oid },
       {
@@ -85,6 +92,7 @@ export async function updateLoan(input: {
           amount_rupees: input.amountRupees,
           status: input.status,
           external_ref: input.externalRef?.trim() || null,
+          due_date: dueDateValue,
         },
       },
     );

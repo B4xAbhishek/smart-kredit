@@ -2,12 +2,15 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import {
   HOME_PRODUCTS,
   isHomeProductEnabledForUser,
+  isHomeProductId,
 } from "@/lib/home-products";
+import { getMongoDb } from "@/lib/mongodb/client";
 import { markHomeVisitedForSession } from "@/lib/mongodb/profile";
 import { getSession } from "@/lib/session";
 import {
   areHomeProductsGloballyEnabled,
   getHomeProductEnabledMapForSession,
+  resolveProfileUserId,
 } from "@/lib/session-profile";
 import { Bell, CreditCard, Zap } from "lucide-react";
 import Link from "next/link";
@@ -25,8 +28,37 @@ export default async function HomePage() {
   await markHomeVisitedForSession(session);
   const enabledMap = await getHomeProductEnabledMapForSession(session);
   const globallyEnabled = await areHomeProductsGloballyEnabled();
+  const profileId = await resolveProfileUserId(session);
+  const settledDefaultProducts = new Set<string>();
+
+  if (profileId) {
+    try {
+      const db = await getMongoDb();
+      const settledDefaultLoans = await db
+        .collection("loans")
+        .find(
+          {
+            userId: profileId,
+            status: { $regex: /^settled$/i },
+          },
+          { projection: { default_product_key: 1 } },
+        )
+        .toArray();
+      for (const loan of settledDefaultLoans) {
+        const key = (loan as { default_product_key?: unknown }).default_product_key;
+        if (isHomeProductId(String(key ?? ""))) {
+          settledDefaultProducts.add(String(key));
+        }
+      }
+    } catch {
+      // Keep home usable even if loan lookup fails.
+    }
+  }
+
   const recommendationRows = Object.values(HOME_PRODUCTS).filter((row) =>
-    globallyEnabled && isHomeProductEnabledForUser(enabledMap, row.id),
+    globallyEnabled &&
+    isHomeProductEnabledForUser(enabledMap, row.id) &&
+    !settledDefaultProducts.has(row.id),
   );
 
   return (
@@ -116,8 +148,8 @@ export default async function HomePage() {
                     {row.productName}
                   </span>
                 </div>
-                <span className="shrink-0 font-[family-name:var(--font-montserrat)] text-sm font-semibold italic text-emerald-600">
-                  Available
+                <span className="shrink-0 font-[family-name:var(--font-montserrat)] text-sm font-semibold italic text-amber-600">
+                  Waiting Repayment
                 </span>
               </div>
 

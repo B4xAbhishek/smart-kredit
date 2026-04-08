@@ -31,6 +31,8 @@ export type LoanDoc = {
   external_ref?: string | null;
   /** Matches `HomeProductId` when this row is a seeded default product loan. */
   default_product_key?: string | null;
+  /** Admin-set due date; when absent the user sees today's date as fallback. */
+  due_date?: Date | null;
   created_at: Date;
 };
 
