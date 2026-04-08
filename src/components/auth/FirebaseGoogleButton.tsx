@@ -1,5 +1,6 @@
 "use client";
 
+import { exchangeFirebaseIdTokenForSession } from "@/lib/auth/exchange-firebase-session";
 import { getFirebaseAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
 import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { Loader2 } from "lucide-react";
@@ -49,29 +50,15 @@ export function FirebaseGoogleButton({ explicitNext }: Props) {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
-      const res = await fetch("/api/auth/firebase-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        redirectTo?: "/home" | "/orders";
-      };
-      if (!res.ok) {
-        const msg =
-          data.error === "firebase_admin_not_configured"
-            ? "Server missing Firebase Admin credentials. In Vercel: Project → Settings → Environment Variables — add FIREBASE_SERVICE_ACCOUNT_JSON (full service account JSON as one line) or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY. Redeploy after saving."
-            : data.error === "mongodb_not_configured"
-              ? "Server is missing MONGODB_URI. Set it in .env.local and restart."
-              : "Google sign-in failed. Try again.";
-        throw new Error(msg);
+      const session = await exchangeFirebaseIdTokenForSession(idToken);
+      if (!session.ok) {
+        throw new Error(session.message);
       }
       await signOut(auth);
       const dest =
         explicitNext && explicitNext !== "/home"
           ? explicitNext
-          : (data.redirectTo ?? "/home");
+          : session.redirectTo;
       router.replace(dest);
       router.refresh();
     } catch (e) {

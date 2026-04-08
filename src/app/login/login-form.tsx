@@ -1,11 +1,18 @@
 "use client";
 
-import { sendOtpAction, verifyOtpAction } from "@/app/login/actions";
+import { exchangeFirebaseIdTokenForSession } from "@/lib/auth/exchange-firebase-session";
 import { FirebaseGoogleButton } from "@/components/auth/FirebaseGoogleButton";
+import { getFirebaseAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  signOut,
+  type ConfirmationResult,
+} from "firebase/auth";
 import { Loader2, Shield, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
   oauth_failed: "Google sign-in failed. Try again.",
@@ -15,19 +22,41 @@ const LOGIN_ERROR_MESSAGES: Record<string, string> = {
 
 const CC = "+91";
 
-const DEV_OTP_BYPASS =
-  process.env.NEXT_PUBLIC_DEV_OTP_BYPASS === "true";
-
 function toE164(digits: string) {
   const d = digits.replace(/\D/g, "").slice(-10);
   return `${CC}${d}`;
 }
 
+function mapFirebasePhoneError(code: string): string {
+  switch (code) {
+    case "auth/invalid-phone-number":
+      return "That phone number is not valid. Use a 10-digit Indian mobile number.";
+    case "auth/missing-phone-number":
+      return "Enter your mobile number.";
+    case "auth/too-many-requests":
+    case "auth/quota-exceeded":
+      return "Too many attempts. Wait a few minutes and try again.";
+    case "auth/captcha-check-failed":
+      return "Verification failed. Refresh the page and try again.";
+    case "auth/invalid-app-credential":
+      return "SMS could not be sent. Check Firebase Phone Auth and reCAPTCHA setup.";
+    case "auth/invalid-verification-code":
+      return "Invalid code. Check the SMS and try again.";
+    case "auth/code-expired":
+      return "That code expired. Tap Resend and enter the new code.";
+    case "auth/session-expired":
+      return "This step timed out. Request a new OTP.";
+    default:
+      return "Could not verify your number. Try again.";
+  }
+}
+
+const RECAPTCHA_CONTAINER_ID = "recaptcha-phone-login";
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const explicitNext = searchParams.get("next");
-  const nextPath = explicitNext ?? "/home";
 
   const [phoneDigits, setPhoneDigits] = useState("");
   const [otp, setOtp] = useState("");
@@ -35,6 +64,11 @@ export function LoginForm() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const verifierRef = useRef<RecaptchaVerifier | null>(null);
+
+  const firebaseReady = isFirebaseClientConfigured();
 
   useEffect(() => {
     const code = searchParams.get("error");
@@ -49,9 +83,31 @@ export function LoginForm() {
     });
   }, [router, searchParams]);
 
+  useEffect(() => {
+    return () => {
+      try {
+        verifierRef.current?.clear();
+      } catch {
+        /* ignore */
+      }
+      verifierRef.current = null;
+      confirmationRef.current = null;
+    };
+  }, []);
+
   const phoneE164 = useCallback(() => toE164(phoneDigits), [phoneDigits]);
 
+  const clearRecaptcha = useCallback(() => {
+    try {
+      verifierRef.current?.clear();
+    } catch {
+      /* ignore */
+    }
+    verifierRef.current = null;
+  }, []);
+
   const sendOtp = async () => {
+    if (!firebaseReady) return;
     setError(null);
     const phone = phoneE164();
     if (phone.length < 13) {
@@ -59,17 +115,32 @@ export function LoginForm() {
       return;
     }
     setSendingOtp(true);
-    const res = await sendOtpAction(phone);
-    setSendingOtp(false);
-    if (!res.ok) {
-      setError(res.error);
-      return;
+    clearRecaptcha();
+    confirmationRef.current = null;
+    try {
+      const auth = getFirebaseAuth();
+      const appVerifier = new RecaptchaVerifier(auth, RECAPTCHA_CONTAINER_ID, {
+        size: "invisible",
+      });
+      verifierRef.current = appVerifier;
+      const confirmation = await signInWithPhoneNumber(auth, phone, appVerifier);
+      confirmationRef.current = confirmation;
+      setOtpSent(true);
+    } catch (e: unknown) {
+      const code =
+        e && typeof e === "object" && "code" in e
+          ? String((e as { code: string }).code)
+          : "";
+      setError(mapFirebasePhoneError(code));
+      clearRecaptcha();
+    } finally {
+      setSendingOtp(false);
     }
-    setOtpSent(true);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!firebaseReady) return;
     setError(null);
     const phone = phoneE164();
     if (phone.length < 13) {
@@ -81,20 +152,67 @@ export function LoginForm() {
       return;
     }
 
-    setVerifying(true);
-    const res = await verifyOtpAction(phone, otp.trim());
-    setVerifying(false);
-    if (!res.ok) {
-      setError(res.error);
+    const confirmation = confirmationRef.current;
+    if (!confirmation) {
+      setError('Tap "Get OTP" first — we need to send you a verification code.');
       return;
     }
-    const dest =
-      explicitNext && explicitNext !== "/home"
-        ? explicitNext
-        : (res.redirectTo ?? "/home");
-    router.replace(dest);
-    router.refresh();
+
+    setVerifying(true);
+    const auth = getFirebaseAuth();
+    try {
+      await confirmation.confirm(otp.trim());
+      const user = auth.currentUser;
+      if (!user) {
+        setError("Sign-in did not complete. Try again.");
+        return;
+      }
+      const idToken = await user.getIdToken();
+      const session = await exchangeFirebaseIdTokenForSession(idToken);
+      await signOut(auth);
+      if (!session.ok) {
+        setError(session.message);
+        return;
+      }
+      const dest =
+        explicitNext && explicitNext !== "/home"
+          ? explicitNext
+          : session.redirectTo;
+      router.replace(dest);
+      router.refresh();
+    } catch (e: unknown) {
+      const code =
+        e && typeof e === "object" && "code" in e
+          ? String((e as { code: string }).code)
+          : "";
+      if (code) {
+        setError(mapFirebasePhoneError(code));
+      } else {
+        setError("Verification failed. Try again.");
+      }
+      try {
+        await signOut(auth);
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setVerifying(false);
+    }
   };
+
+  if (!firebaseReady) {
+    return (
+      <div className="rounded-xl border border-brand-plum/15 bg-brand-lavender/40 px-3 py-3 text-center text-xs text-brand-plum/80">
+        Phone and Google sign-in need Firebase: set{" "}
+        <code className="rounded bg-white/80 px-1 py-0.5 text-[0.65rem]">
+          NEXT_PUBLIC_FIREBASE_*
+        </code>{" "}
+        in your environment (see <code className="text-[0.65rem]">.env.example</code>
+        ). In Firebase Console → Authentication → Sign-in method, enable{" "}
+        <strong>Phone</strong> and <strong>Google</strong>.
+      </div>
+    );
+  }
 
   return (
     <form
@@ -161,17 +279,11 @@ export function LoginForm() {
         </div>
       </label>
 
+      <div id={RECAPTCHA_CONTAINER_ID} aria-hidden="true" className="sr-only" />
+
       {otpSent && !error ? (
         <p className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700" role="status">
-          {DEV_OTP_BYPASS ? (
-            <>
-              Dev mode: enter any <strong>6 digits</strong> as OTP (no real SMS).
-            </>
-          ) : (
-            <>
-              OTP sent to {CC} {phoneDigits}
-            </>
-          )}
+          OTP sent to {CC} {phoneDigits} (SMS from Firebase).
         </p>
       ) : null}
 
@@ -222,7 +334,7 @@ export function LoginForm() {
         >
           Privacy Policy
         </Link>
-        . SMS charges may apply.
+        . SMS is sent by Firebase; carrier charges may apply.
       </p>
     </form>
   );

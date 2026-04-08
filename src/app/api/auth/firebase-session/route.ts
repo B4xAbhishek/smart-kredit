@@ -6,8 +6,9 @@ import { isMongoConfigured } from "@/lib/mongodb/client";
 import {
   getPostLoginRedirectPath,
   syncGoogleProfileToMongo,
+  upsertPhoneProfile,
 } from "@/lib/mongodb/profile";
-import { createEmailSession } from "@/lib/session";
+import { createEmailSession, createSession } from "@/lib/session";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -43,6 +44,22 @@ export async function POST(request: NextRequest) {
   try {
     const auth = getFirebaseAdminAuth();
     const decoded = await auth.verifyIdToken(idToken);
+    const uid = decoded.uid;
+    const provider = decoded.firebase?.sign_in_provider;
+
+    if (provider === "phone") {
+      const phone = decoded.phone_number;
+      if (!phone) {
+        return NextResponse.json({ error: "no_phone" }, { status: 400 });
+      }
+      await upsertPhoneProfile(uid, phone);
+      const redirectTo = await getPostLoginRedirectPath(uid);
+      await createSession(phone, uid, {
+        repeatCustomer: redirectTo === "/orders",
+      });
+      return NextResponse.json({ ok: true, redirectTo });
+    }
+
     const email = decoded.email;
     if (!email) {
       return NextResponse.json({ error: "no_email" }, { status: 400 });
@@ -50,7 +67,6 @@ export async function POST(request: NextRequest) {
 
     const displayName =
       (typeof decoded.name === "string" ? decoded.name : null) ?? null;
-    const uid = decoded.uid;
 
     await syncGoogleProfileToMongo(uid, email, displayName);
     const redirectTo = await getPostLoginRedirectPath(uid);
