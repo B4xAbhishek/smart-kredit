@@ -70,7 +70,7 @@ export default async function OrdersPage() {
           status === "settled"
             ? "Settled"
             : status === "active"
-              ? "Active"
+              ? "Waiting for repayment"
               : "Pending";
         const key = row.default_product_key;
         const detailHref =
