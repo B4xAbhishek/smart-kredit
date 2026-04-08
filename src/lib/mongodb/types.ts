@@ -33,3 +33,11 @@ export type LoanDoc = {
   default_product_key?: string | null;
   created_at: Date;
 };
+
+/** Global app-level settings stored by known `_id` keys. */
+export type AppSettingHomeProductsDoc = {
+  _id: "home_products";
+  /** Default true when document/key is missing. */
+  globally_enabled?: boolean;
+  updated_at?: Date;
+};

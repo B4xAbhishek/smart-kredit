@@ -6,6 +6,7 @@ import {
   deleteLoan,
   syncDefaultLoansForAllUsers,
   type LoanStatus,
+  updateGlobalHomeProductsEnabled,
   updateHomeProductEnabled,
   updateLoan,
   updateProfile,
@@ -99,6 +100,7 @@ export function AdminDashboard({
   pageSize,
   totalCount,
   stats,
+  globalHomeProductsEnabled,
 }: {
   users: AdminUserRow[];
   searchQ: string;
@@ -106,6 +108,7 @@ export function AdminDashboard({
   pageSize: number;
   totalCount: number;
   stats: { usersCount: number; avail: number; settled: number };
+  globalHomeProductsEnabled: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -167,6 +170,28 @@ export function AdminDashboard({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-brand-plum/20 bg-white px-3 py-1.5">
+              <span className="text-xs font-medium text-zinc-600">
+                Products (all users): {globalHomeProductsEnabled ? "On" : "Off"}
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={globalHomeProductsEnabled}
+                disabled={pending}
+                onChange={(e) =>
+                  runAction(() =>
+                    updateGlobalHomeProductsEnabled({
+                      enabled: e.target.checked,
+                    }),
+                  )
+                }
+                className="peer sr-only"
+              />
+              <span className="relative inline-block h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-indigo peer-disabled:opacity-50 peer-checked:[&>span]:translate-x-5">
+                <span className="absolute left-0.5 top-0.5 block size-5 rounded-full bg-white shadow transition-transform" />
+              </span>
+            </label>
             <button
               type="button"
               onClick={() => {
@@ -314,16 +339,19 @@ export function AdminDashboard({
         </div>
 
         <div className="overflow-x-auto lg:rounded-b-lg">
-          <table className="w-full min-w-[880px] table-fixed border-collapse text-left text-sm lg:min-w-0 lg:text-sm">
+          <table className="w-full min-w-[1080px] table-fixed border-collapse text-left text-sm lg:min-w-0 lg:text-sm">
             <thead className="bg-zinc-100 max-lg:bg-brand-lavender/80">
               <tr className="border-b border-zinc-200 max-lg:border-brand-plum/10">
-                <th className="w-[22%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
+                <th className="w-[18%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
                   User
                 </th>
-                <th className="w-[18%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
-                  Display name
+                <th className="w-[16%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
+                  Phone number
                 </th>
                 <th className="w-[16%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
+                  Display name
+                </th>
+                <th className="w-[14%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:normal-case max-lg:text-brand-plum sm:px-4 lg:px-6 lg:py-3.5">
                   UPI ID
                 </th>
                 <th className="w-[14%] px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-600 max-lg:text-left max-lg:normal-case max-lg:text-amber-700 sm:px-4 lg:px-6 lg:py-3.5">
@@ -360,6 +388,15 @@ export function AdminDashboard({
                         <span className="lg:hidden">{u.id.slice(0, 8)}…</span>
                         <span className="hidden lg:inline">{u.id}</span>
                       </span>
+                    </td>
+                    <td className="px-3 py-3 sm:px-4 lg:px-6 lg:py-3.5">
+                      <ProfilePhoneCell
+                        user={u}
+                        disabled={pending}
+                        onSave={(phone) =>
+                          runAction(() => updateProfile({ userId: u.id, phone }))
+                        }
+                      />
                     </td>
                     <td className="px-3 py-3 sm:px-4 lg:px-6 lg:py-3.5">
                       <ProfileNameCell
@@ -587,6 +624,80 @@ function ProfileUpiCell({
       >
         <Pencil className="size-3.5" />
       </button>
+    </div>
+  );
+}
+
+function ProfilePhoneCell({
+  user,
+  disabled,
+  onSave,
+}: {
+  user: AdminUserRow;
+  disabled: boolean;
+  onSave: (v: string | null) => void;
+}) {
+  const [edit, setEdit] = useState(false);
+  const [val, setVal] = useState(user.phone_e164 ?? user.phone ?? "");
+  const editable = isEmailUser(user);
+  const shownPhone = user.phone_e164?.trim() || user.phone?.trim() || "—";
+
+  if (edit) {
+    return (
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave(val || null);
+          setEdit(false);
+        }}
+      >
+        <input
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-brand-plum/20 px-2 py-1.5 font-mono text-xs"
+          placeholder="+919876543210"
+          autoComplete="off"
+          inputMode="tel"
+          disabled={disabled}
+        />
+        <button
+          type="submit"
+          disabled={disabled}
+          className="rounded-lg bg-brand-indigo px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setVal(user.phone_e164 ?? user.phone ?? "");
+            setEdit(false);
+          }}
+          className="text-xs text-brand-plum/55"
+        >
+          Cancel
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="break-all font-mono text-xs text-brand-plum">{shownPhone}</span>
+      {editable ? (
+        <button
+          type="button"
+          onClick={() => {
+            setVal(user.phone_e164 ?? user.phone ?? "");
+            setEdit(true);
+          }}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-brand-indigo hover:bg-brand-lavender"
+          aria-label="Edit phone number"
+        >
+          <Pencil className="size-3.5" />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -894,7 +1005,7 @@ function CreateUserPanel({
   disabled: boolean;
   onClose: () => void;
   onCreate: (input: {
-    phone?: string;
+    phone: string;
     email?: string;
     displayName?: string;
     upiId?: string;
@@ -949,30 +1060,30 @@ function CreateUserPanel({
         onSubmit={(e) => {
           e.preventDefault();
           const common = {
+            phone: phone.trim(),
             displayName: displayName || undefined,
             upiId: upiId.trim() || undefined,
           };
           if (mode === "phone") {
-            onCreate({ phone: phone.trim(), ...common });
+            onCreate(common);
           } else {
             onCreate({ email: email.trim(), ...common });
           }
         }}
       >
-        {mode === "phone" ? (
-          <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
-            Phone number (+91…)
-            <input
-              required
-              type="tel"
-              placeholder="+919876543210"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="rounded-lg border border-brand-plum/20 px-2 py-2 text-sm text-brand-plum"
-              disabled={disabled}
-            />
-          </label>
-        ) : (
+        <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
+          Phone number (+91…)
+          <input
+            required
+            type="tel"
+            placeholder="+919876543210"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="rounded-lg border border-brand-plum/20 px-2 py-2 text-sm text-brand-plum"
+            disabled={disabled}
+          />
+        </label>
+        {mode === "email" ? (
           <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
             Email address
             <input
@@ -985,7 +1096,7 @@ function CreateUserPanel({
               disabled={disabled}
             />
           </label>
-        )}
+        ) : null}
         <label className="flex flex-col gap-1 text-xs font-medium text-brand-plum/70">
           Display name (optional)
           <input

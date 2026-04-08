@@ -1,7 +1,7 @@
 import { isAdminForSession } from "@/lib/admin-auth";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type { HomeProductId } from "@/lib/home-products";
-import type { ProfileDoc } from "@/lib/mongodb/types";
+import type { AppSettingHomeProductsDoc, ProfileDoc } from "@/lib/mongodb/types";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import {
@@ -74,9 +74,14 @@ export default async function AdminPage({
   let users: AdminUserRow[] = [];
   let totalCount = 0;
   let stats = { usersCount: 0, avail: 0, settled: 0 };
+  let globalHomeProductsEnabled = true;
 
   try {
     const db = await getMongoDb();
+    const globalSetting = await db
+      .collection<AppSettingHomeProductsDoc>("app_settings")
+      .findOne({ _id: "home_products" });
+    globalHomeProductsEnabled = globalSetting?.globally_enabled !== false;
     const profileFilter = profileFilterFromQuery(q);
 
     totalCount = await db.collection("profiles").countDocuments(profileFilter);
@@ -178,6 +183,7 @@ export default async function AdminPage({
       pageSize={ADMIN_PAGE_SIZE}
       totalCount={totalCount}
       stats={stats}
+      globalHomeProductsEnabled={globalHomeProductsEnabled}
     />
   );
 }

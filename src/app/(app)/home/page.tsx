@@ -5,7 +5,10 @@ import {
 } from "@/lib/home-products";
 import { markHomeVisitedForSession } from "@/lib/mongodb/profile";
 import { getSession } from "@/lib/session";
-import { getHomeProductEnabledMapForSession } from "@/lib/session-profile";
+import {
+  areHomeProductsGloballyEnabled,
+  getHomeProductEnabledMapForSession,
+} from "@/lib/session-profile";
 import { Bell, CreditCard, Zap } from "lucide-react";
 import Link from "next/link";
 
@@ -21,8 +24,9 @@ export default async function HomePage() {
   const session = await getSession();
   await markHomeVisitedForSession(session);
   const enabledMap = await getHomeProductEnabledMapForSession(session);
+  const globallyEnabled = await areHomeProductsGloballyEnabled();
   const recommendationRows = Object.values(HOME_PRODUCTS).filter((row) =>
-    isHomeProductEnabledForUser(enabledMap, row.id),
+    globallyEnabled && isHomeProductEnabledForUser(enabledMap, row.id),
   );
 
   return (

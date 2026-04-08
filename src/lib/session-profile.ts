@@ -1,6 +1,6 @@
 import type { HomeProductId } from "@/lib/home-products";
 import { getMongoDb } from "@/lib/mongodb/client";
-import type { ProfileDoc } from "@/lib/mongodb/types";
+import type { AppSettingHomeProductsDoc, ProfileDoc } from "@/lib/mongodb/types";
 import type { SessionPayload } from "@/lib/session-types";
 
 /** Resolves Firebase UID for DB queries from cookie session. */
@@ -35,5 +35,18 @@ export async function getHomeProductEnabledMapForSession(
     return doc?.home_product_enabled ?? null;
   } catch {
     return null;
+  }
+}
+
+/** Global master switch for home products (default: true). */
+export async function areHomeProductsGloballyEnabled(): Promise<boolean> {
+  try {
+    const db = await getMongoDb();
+    const doc = await db
+      .collection<AppSettingHomeProductsDoc>("app_settings")
+      .findOne({ _id: "home_products" });
+    return doc?.globally_enabled !== false;
+  } catch {
+    return true;
   }
 }

@@ -3,7 +3,7 @@
 import { ArrowLeft, FileText, Hand, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import paytmLogo from "@/assets/paytm.png";
@@ -24,6 +24,8 @@ function formatTime(total: number) {
 
 export function PaymentCheckout() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const payableAmountRupees = searchParams.get("payableAmountRupees");
   const [secondsLeft, setSecondsLeft] = useState(INITIAL_SECONDS);
   const [qrVisible, setQrVisible] = useState(false);
   const [refNo, setRefNo] = useState("");
@@ -96,9 +98,9 @@ export function PaymentCheckout() {
         <div className="mt-2 flex items-start justify-between gap-3">
           <div>
             <p className="font-[family-name:var(--font-montserrat)] text-3xl font-bold tracking-tight text-brand-indigo sm:text-[2rem]">
-              ₹7,023.21
+              {payableAmountRupees && `₹${payableAmountRupees}`}
             </p>
-            <p className="mt-1 text-sm text-zinc-400 line-through">₹ 7,025</p>
+            {/* <p className="mt-1 text-sm text-zinc-400 line-through">₹ 7,025</p> */}
           </div>
           <span className="mt-1 inline-flex text-brand-indigo" aria-hidden>
             <FileText className="size-7" strokeWidth={1.5} />

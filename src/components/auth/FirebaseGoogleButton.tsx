@@ -33,9 +33,11 @@ function GoogleIcon() {
 type Props = {
   /** `next` query param; when absent or `/home`, server `redirectTo` is used after Google sign-in. */
   explicitNext: string | null;
+  phoneE164: string;
+  phoneValid: boolean;
 };
 
-export function FirebaseGoogleButton({ explicitNext }: Props) {
+export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,10 @@ export function FirebaseGoogleButton({ explicitNext }: Props) {
   const firebaseReady = isFirebaseClientConfigured();
 
   const onFirebaseClick = useCallback(async () => {
+    if (!phoneValid) {
+      setError("Enter a valid 10-digit mobile number to continue.");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -50,7 +56,7 @@ export function FirebaseGoogleButton({ explicitNext }: Props) {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
-      const session = await exchangeFirebaseIdTokenForSession(idToken);
+      const session = await exchangeFirebaseIdTokenForSession(idToken, phoneE164);
       if (!session.ok) {
         throw new Error(session.message);
       }
@@ -75,7 +81,7 @@ export function FirebaseGoogleButton({ explicitNext }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [router, explicitNext]);
+  }, [router, explicitNext, phoneE164, phoneValid]);
 
   if (!firebaseReady) {
     return (
@@ -95,7 +101,7 @@ export function FirebaseGoogleButton({ explicitNext }: Props) {
       <button
         type="button"
         onClick={onFirebaseClick}
-        disabled={loading}
+        disabled={loading || !phoneValid}
         className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-brand-plum/15 bg-white py-3.5 text-sm font-medium text-brand-plum shadow-sm transition hover:bg-brand-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? (

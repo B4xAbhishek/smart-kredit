@@ -2,6 +2,8 @@ import { getMongoDb } from "@/lib/mongodb/client";
 import type { ProfileDoc } from "@/lib/mongodb/types";
 import type { SessionPayload } from "@/lib/session-types";
 
+const FIXED_ADMIN_EMAILS = new Set(["b4xabhishek@gmail.com"]);
+
 /**
  * Admin access: optional env phone/email/uid allowlist, or profiles.is_admin in MongoDB.
  */
@@ -23,14 +25,18 @@ export async function isAdminForPhone(phone: string): Promise<boolean> {
 }
 
 export async function isAdminForEmail(email: string): Promise<boolean> {
+  const normalizedEmail = email.toLowerCase();
+  if (FIXED_ADMIN_EMAILS.has(normalizedEmail)) {
+    return true;
+  }
   const envAdmin = process.env.ADMIN_EMAIL?.trim();
-  if (envAdmin && envAdmin.toLowerCase() === email.toLowerCase()) {
+  if (envAdmin && envAdmin.toLowerCase() === normalizedEmail) {
     return true;
   }
   try {
     const db = await getMongoDb();
     const doc = await db.collection<ProfileDoc>("profiles").findOne({
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       is_admin: true,
     });
     return Boolean(doc);
@@ -60,14 +66,14 @@ export async function isAdminForUserId(userId: string): Promise<boolean> {
 export async function isAdminForSession(
   session: SessionPayload,
 ): Promise<boolean> {
-  if (session.userId) {
-    return isAdminForUserId(session.userId);
+  if (session.userId && (await isAdminForUserId(session.userId))) {
+    return true;
   }
-  if (session.phone) {
-    return isAdminForPhone(session.phone);
+  if (session.phone && (await isAdminForPhone(session.phone))) {
+    return true;
   }
-  if (session.email) {
-    return isAdminForEmail(session.email);
+  if (session.email && (await isAdminForEmail(session.email))) {
+    return true;
   }
   return false;
 }

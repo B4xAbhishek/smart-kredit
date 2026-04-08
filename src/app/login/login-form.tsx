@@ -96,6 +96,7 @@ export function LoginForm() {
   }, []);
 
   const phoneE164 = useCallback(() => toE164(phoneDigits), [phoneDigits]);
+  const phoneValid = phoneDigits.length === 10;
 
   const clearRecaptcha = useCallback(() => {
     try {
@@ -168,7 +169,7 @@ export function LoginForm() {
         return;
       }
       const idToken = await user.getIdToken();
-      const session = await exchangeFirebaseIdTokenForSession(idToken);
+      const session = await exchangeFirebaseIdTokenForSession(idToken, phone);
       await signOut(auth);
       if (!session.ok) {
         setError(session.message);
@@ -317,7 +318,11 @@ export function LoginForm() {
         <div className="h-px flex-1 bg-brand-plum/10" />
       </div>
 
-      <FirebaseGoogleButton explicitNext={explicitNext} />
+      <FirebaseGoogleButton
+        explicitNext={explicitNext}
+        phoneE164={phoneE164()}
+        phoneValid={phoneValid}
+      />
 
       <p className="text-center text-xs leading-relaxed text-brand-plum/50">
         By continuing you agree to our{" "}

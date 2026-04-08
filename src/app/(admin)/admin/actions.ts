@@ -7,7 +7,7 @@ import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type { HomeProductId } from "@/lib/home-products";
 import { HOME_PRODUCT_IDS } from "@/lib/home-products";
-import type { ProfileDoc } from "@/lib/mongodb/types";
+import type { AppSettingHomeProductsDoc, ProfileDoc } from "@/lib/mongodb/types";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 
@@ -140,19 +140,24 @@ export async function createUser(input: {
   const { db, error: authError } = await requireAdminDb();
   if (!db) return { error: authError ?? "Database not available." };
 
-  if (!input.phone && !input.email) {
-    return { error: "Provide a phone number or email." };
+  const rawPhone = input.phone?.trim() ?? "";
+  if (!rawPhone) {
+    return { error: "Phone number is required." };
+  }
+  const normalizedDigits = rawPhone.replace(/\D/g, "");
+  const e164 = rawPhone.startsWith("+")
+    ? rawPhone.replace(/\s/g, "")
+    : `+91${normalizedDigits.slice(-10)}`;
+  const e164Digits = e164.replace(/\D/g, "");
+  if (e164Digits.length < 10) {
+    return { error: "Enter a valid phone number." };
   }
 
   const auth = getFirebaseAdminAuth();
   let uid: string;
 
   try {
-    if (input.phone) {
-      const phone = input.phone.trim().replace(/\s/g, "");
-      const e164 = phone.startsWith("+")
-        ? phone
-        : `+91${phone.replace(/\D/g, "").slice(-10)}`;
+    if (!input.email?.trim()) {
       try {
         const u = await auth.getUserByPhoneNumber(e164);
         uid = u.uid;
@@ -183,7 +188,7 @@ export async function createUser(input: {
         { upsert: true },
       );
     } else {
-      const email = input.email!.trim().toLowerCase();
+      const email = input.email.trim().toLowerCase();
       try {
         const u = await auth.getUserByEmail(email);
         uid = u.uid;
@@ -196,15 +201,19 @@ export async function createUser(input: {
         const created = await auth.createUser({
           email,
           emailVerified: true,
+          phoneNumber: e164,
         });
         uid = created.uid;
       }
+      await auth.updateUser(uid, { phoneNumber: e164 });
       const now = new Date();
       await db.collection<ProfileDoc>("profiles").updateOne(
         { _id: uid },
         {
           $set: {
             email,
+            phone_e164: e164,
+            phone: e164,
             display_name: input.displayName?.trim() || null,
             upi_id: input.upiId?.trim() || null,
             updated_at: now,
@@ -257,6 +266,7 @@ export async function updateProfile(input: {
   userId: string;
   displayName?: string | null;
   upiId?: string | null;
+  phone?: string | null;
 }) {
   const { db, error: authError } = await requireAdminDb();
   if (!db) return { error: authError ?? "Database not available." };
@@ -267,6 +277,24 @@ export async function updateProfile(input: {
   }
   if ("upiId" in input) {
     set.upi_id = input.upiId?.trim() || null;
+  }
+  if ("phone" in input) {
+    const rawPhone = input.phone?.trim() ?? "";
+    if (!rawPhone) {
+      set.phone = null;
+      set.phone_e164 = null;
+    } else {
+      const normalizedDigits = rawPhone.replace(/\D/g, "");
+      const normalizedPhone = rawPhone.startsWith("+")
+        ? rawPhone.replace(/\s/g, "")
+        : `+91${normalizedDigits.slice(-10)}`;
+      const e164Digits = normalizedPhone.replace(/\D/g, "");
+      if (e164Digits.length < 10) {
+        return { error: "Enter a valid phone number." };
+      }
+      set.phone = normalizedPhone;
+      set.phone_e164 = normalizedPhone;
+    }
   }
   if (Object.keys(set).length <= 1) {
     return { error: "Nothing to update." };
@@ -316,6 +344,34 @@ export async function updateHomeProductEnabled(input: {
   } catch (e) {
     const msg =
       e instanceof Error ? e.message : "Failed to update product visibility.";
+    return { error: msg };
+  }
+  revalidatePath("/admin");
+  revalidatePath("/home");
+  revalidatePath("/orders");
+  return { ok: true as const };
+}
+
+export async function updateGlobalHomeProductsEnabled(input: {
+  enabled: boolean;
+}) {
+  const { db, error: authError } = await requireAdminDb();
+  if (!db) return { error: authError ?? "Database not available." };
+
+  try {
+    await db.collection<AppSettingHomeProductsDoc>("app_settings").updateOne(
+      { _id: "home_products" },
+      {
+        $set: {
+          globally_enabled: input.enabled,
+          updated_at: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+  } catch (e) {
+    const msg =
+      e instanceof Error ? e.message : "Failed to update global product setting.";
     return { error: msg };
   }
   revalidatePath("/admin");

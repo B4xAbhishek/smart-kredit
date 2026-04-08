@@ -5,7 +5,10 @@ import {
   type HomeProductId,
 } from "@/lib/home-products";
 import { getSession } from "@/lib/session";
-import { getHomeProductEnabledMapForSession } from "@/lib/session-profile";
+import {
+  areHomeProductsGloballyEnabled,
+  getHomeProductEnabledMapForSession,
+} from "@/lib/session-profile";
 import { ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -46,6 +49,10 @@ export default async function OrderDetailPage({
   }
 
   const session = await getSession();
+  const globallyEnabled = await areHomeProductsGloballyEnabled();
+  if (!globallyEnabled) {
+    notFound();
+  }
   const enabledMap = await getHomeProductEnabledMapForSession(session);
   if (!isHomeProductEnabledForUser(enabledMap, productId)) {
     notFound();
@@ -149,7 +156,7 @@ export default async function OrderDetailPage({
             </div>
 
             <Link
-              href="/payment"
+              href={`/payment?payableAmountRupees=${unpaidAmount}`}
               className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-[#4a7bff] to-brand-indigo py-3.5 text-center text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
             >
               Repayment

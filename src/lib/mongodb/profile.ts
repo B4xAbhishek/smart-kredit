@@ -9,6 +9,7 @@ export async function syncGoogleProfileToMongo(
   uid: string,
   email: string,
   displayName: string | null,
+  phoneE164: string | null = null,
 ) {
   const db = await getMongoDb();
   const now = new Date();
@@ -18,6 +19,8 @@ export async function syncGoogleProfileToMongo(
       $set: {
         email: email.toLowerCase(),
         display_name: displayName ?? null,
+        phone_e164: phoneE164,
+        phone: phoneE164,
         updated_at: now,
       },
       $setOnInsert: { created_at: now },

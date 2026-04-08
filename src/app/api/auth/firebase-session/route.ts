@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { idToken?: string };
+  let body: { idToken?: string; assertedPhoneE164?: string };
   try {
     body = await request.json();
   } catch {
@@ -39,6 +39,10 @@ export async function POST(request: NextRequest) {
   const idToken = body.idToken?.trim();
   if (!idToken) {
     return NextResponse.json({ error: "missing_id_token" }, { status: 400 });
+  }
+  const assertedPhoneE164 = body.assertedPhoneE164?.trim();
+  if (!assertedPhoneE164) {
+    return NextResponse.json({ error: "missing_phone" }, { status: 400 });
   }
 
   try {
@@ -51,6 +55,9 @@ export async function POST(request: NextRequest) {
       const phone = decoded.phone_number;
       if (!phone) {
         return NextResponse.json({ error: "no_phone" }, { status: 400 });
+      }
+      if (phone !== assertedPhoneE164) {
+        return NextResponse.json({ error: "phone_mismatch" }, { status: 400 });
       }
       await upsertPhoneProfile(uid, phone);
       const redirectTo = await getPostLoginRedirectPath(uid);
@@ -68,7 +75,7 @@ export async function POST(request: NextRequest) {
     const displayName =
       (typeof decoded.name === "string" ? decoded.name : null) ?? null;
 
-    await syncGoogleProfileToMongo(uid, email, displayName);
+    await syncGoogleProfileToMongo(uid, email, displayName, assertedPhoneE164);
     const redirectTo = await getPostLoginRedirectPath(uid);
     await createEmailSession(email, uid, {
       repeatCustomer: redirectTo === "/orders",

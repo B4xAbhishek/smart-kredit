@@ -6,11 +6,12 @@ export type FirebaseSessionExchangeResult =
 
 export async function exchangeFirebaseIdTokenForSession(
   idToken: string,
+  assertedPhoneE164?: string,
 ): Promise<FirebaseSessionExchangeResult> {
   const res = await fetch("/api/auth/firebase-session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({ idToken, assertedPhoneE164 }),
   });
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
@@ -35,6 +36,10 @@ function mapFirebaseSessionError(code: string | undefined): string {
       return "Your Google account has no email on file. Use another Google account.";
     case "no_phone":
       return "Phone sign-in did not return a number. Try again.";
+    case "missing_phone":
+      return "Phone number is required for login.";
+    case "phone_mismatch":
+      return "Please verify OTP with the same phone number entered.";
     default:
       return "Sign-in failed. Try again.";
   }
