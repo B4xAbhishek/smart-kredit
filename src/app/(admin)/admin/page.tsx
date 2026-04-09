@@ -28,7 +28,14 @@ function escapeRegex(s: string) {
 function profileFilterFromQuery(q: string): Record<string, unknown> {
   const term = q.trim();
   if (!term) return {};
-  return { _id: { $regex: escapeRegex(term), $options: "i" } };
+  const escaped = escapeRegex(term);
+  return {
+    $or: [
+      { _id: { $regex: escaped, $options: "i" } },
+      { phone_e164: { $regex: escaped, $options: "i" } },
+      { phone: { $regex: escaped, $options: "i" } },
+    ],
+  };
 }
 
 function tsToIso(v: unknown): string {

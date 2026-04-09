@@ -43,3 +43,18 @@ export function isHomeProductEnabledForUser(
 ): boolean {
   return isHomeProductSwitchOn(map, productId);
 }
+
+/**
+ * Home recommendations and `/order/[productId]`: both global and per-user must
+ * allow the product (explicit `false` in either map hides it).
+ */
+export function isHomeProductVisibleForUser(
+  globalMap: Partial<Record<HomeProductId, boolean>> | null | undefined,
+  userMap: Partial<Record<HomeProductId, boolean>> | null | undefined,
+  productId: HomeProductId,
+): boolean {
+  return (
+    isHomeProductSwitchOn(globalMap, productId) &&
+    isHomeProductSwitchOn(userMap, productId)
+  );
+}

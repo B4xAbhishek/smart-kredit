@@ -2,11 +2,20 @@ import {
   buildHomeProductLoanMap,
   type HomeLoanDoc,
 } from "@/lib/home-product-loan";
-import { HOME_PRODUCTS, isHomeProductId, type HomeProductId } from "@/lib/home-products";
+import {
+  HOME_PRODUCTS,
+  isHomeProductId,
+  isHomeProductVisibleForUser,
+  type HomeProductId,
+} from "@/lib/home-products";
 import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import { getSession } from "@/lib/session";
-import { resolveProfileUserId } from "@/lib/session-profile";
+import {
+  getGlobalHomeProductEnabledMap,
+  getHomeProductEnabledMapForSession,
+  resolveProfileUserId,
+} from "@/lib/session-profile";
 import { ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -66,7 +75,20 @@ export default async function OrderDetailPage({
   }
 
   const session = await getSession();
-  const userId = await resolveProfileUserId(session);
+  const [userId, globalMap, userProductMap] = await Promise.all([
+    resolveProfileUserId(session),
+    getGlobalHomeProductEnabledMap(),
+    getHomeProductEnabledMapForSession(session),
+  ]);
+  if (
+    !isHomeProductVisibleForUser(
+      globalMap,
+      userProductMap,
+      productId as HomeProductId,
+    )
+  ) {
+    notFound();
+  }
   const product = HOME_PRODUCTS[productId as HomeProductId];
   let loanAmount = product.loanAmountRupees;
   if (userId) {

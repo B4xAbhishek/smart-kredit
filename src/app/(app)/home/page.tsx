@@ -1,7 +1,7 @@
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import {
   HOME_PRODUCTS,
-  isHomeProductSwitchOn,
+  isHomeProductVisibleForUser,
   type HomeProductId,
 } from "@/lib/home-products";
 import {
@@ -57,10 +57,7 @@ export default async function HomePage() {
   }
 
   const recommendationRows = Object.values(HOME_PRODUCTS).filter((row) => {
-    if (
-      !isHomeProductSwitchOn(globalMap, row.id) ||
-      !isHomeProductSwitchOn(enabledMap, row.id)
-    ) {
+    if (!isHomeProductVisibleForUser(globalMap, enabledMap, row.id)) {
       return false;
     }
     const fromDb = loanByHomeId.get(row.id);

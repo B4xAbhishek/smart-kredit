@@ -385,7 +385,8 @@ export function AdminDashboard({
           <div>
             <h2 className="text-sm font-semibold text-zinc-800">Users</h2>
             <p className="text-xs text-zinc-500">
-              Search by Firebase user ID. Expand a row to manage loans.
+              Search by phone number or Firebase user ID. Expand a row to manage
+              loans.
             </p>
           </div>
           <form
@@ -394,7 +395,7 @@ export function AdminDashboard({
             className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:max-w-xl"
           >
             <label className="sr-only" htmlFor="admin-user-search">
-              User ID
+              Phone or user ID
             </label>
             <div className="relative min-w-0 flex-1">
               <Search
@@ -405,7 +406,7 @@ export function AdminDashboard({
                 id="admin-user-search"
                 name="q"
                 type="search"
-                placeholder="Search by user ID…"
+                placeholder="Phone or Firebase user ID…"
                 defaultValue={searchQ}
                 autoComplete="off"
                 className="w-full rounded-lg border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-brand-indigo focus:outline-none focus:ring-1 focus:ring-brand-indigo"
@@ -570,7 +571,7 @@ export function AdminDashboard({
           {users.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-zinc-500 max-lg:text-brand-plum/55 lg:border-t lg:border-zinc-100 lg:px-6 lg:text-sm">
               {searchQ
-                ? "No users match this user ID search."
+                ? "No users match this search."
                 : "No profiles yet. Users appear after they sign up."}
             </p>
           ) : null}

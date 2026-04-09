@@ -1,6 +1,7 @@
 import {
   HOME_PRODUCTS,
   isHomeProductId,
+  isHomeProductVisibleForUser,
   type HomeProductId,
 } from "@/lib/home-products";
 
@@ -52,6 +53,27 @@ export function resolveHomeProductKeyForLoan(row: {
     }
   }
   return null;
+}
+
+/**
+ * Orders list: custom loans always show. Catalog home products show while
+ * ongoing (repayment); settled rows are omitted when that product is hidden
+ * (global/per-user), matching Home visibility without hiding active debt.
+ */
+export function shouldIncludeLoanOnOrdersList(
+  row: {
+    product_name?: string;
+    amount_rupees?: unknown;
+    default_product_key?: string | null;
+    status?: unknown;
+  },
+  globalMap: Partial<Record<HomeProductId, boolean>> | null | undefined,
+  userMap: Partial<Record<HomeProductId, boolean>> | null | undefined,
+): boolean {
+  const productKey = resolveHomeProductKeyForLoan(row);
+  if (!productKey) return true;
+  if (isHomeProductVisibleForUser(globalMap, userMap, productKey)) return true;
+  return normalizeLoanStatus(row.status) !== "settled";
 }
 
 /**
