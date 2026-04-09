@@ -1,16 +1,7 @@
-import {
-  HOME_PRODUCTS,
-  isHomeProductEnabledForUser,
-  isHomeProductId,
-  type HomeProductId,
-} from "@/lib/home-products";
+import { HOME_PRODUCTS, isHomeProductId, type HomeProductId } from "@/lib/home-products";
 import { getMongoDb } from "@/lib/mongodb/client";
 import { getSession } from "@/lib/session";
-import {
-  areHomeProductsGloballyEnabled,
-  getHomeProductEnabledMapForSession,
-  resolveProfileUserId,
-} from "@/lib/session-profile";
+import { resolveProfileUserId } from "@/lib/session-profile";
 import { ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -70,15 +61,6 @@ export default async function OrderDetailPage({
   }
 
   const session = await getSession();
-  const globallyEnabled = await areHomeProductsGloballyEnabled();
-  if (!globallyEnabled) {
-    notFound();
-  }
-  const enabledMap = await getHomeProductEnabledMapForSession(session);
-  if (!isHomeProductEnabledForUser(enabledMap, productId)) {
-    notFound();
-  }
-
   const userId = await resolveProfileUserId(session);
   const product = HOME_PRODUCTS[productId as HomeProductId];
   const loanAmount = product.loanAmountRupees;

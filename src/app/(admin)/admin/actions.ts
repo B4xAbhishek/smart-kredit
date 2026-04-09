@@ -7,7 +7,11 @@ import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type { HomeProductId } from "@/lib/home-products";
 import { HOME_PRODUCT_IDS } from "@/lib/home-products";
-import type { AppSettingHomeProductsDoc, ProfileDoc } from "@/lib/mongodb/types";
+import type {
+  AppSettingHomeProductsDoc,
+  AppSettingPaymentUpiDoc,
+  ProfileDoc,
+} from "@/lib/mongodb/types";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 
@@ -136,6 +140,53 @@ export async function deleteLoan(id: string) {
   }
   revalidatePath("/admin");
   revalidatePath("/orders");
+  return { ok: true as const };
+}
+
+export async function deleteUser(userId: string) {
+  const { db, error: authError } = await requireAdminDb();
+  if (!db) return { error: authError ?? "Database not available." };
+
+  const session = await getSession();
+  if (session?.userId && session.userId === userId) {
+    return { error: "You cannot delete your own admin account." };
+  }
+
+  try {
+    const profile = await db.collection<ProfileDoc>("profiles").findOne(
+      { _id: userId },
+      { projection: { is_admin: 1 } },
+    );
+    if (!profile) {
+      return { error: "User profile not found." };
+    }
+    if (profile.is_admin === true) {
+      return { error: "Admin users cannot be deleted." };
+    }
+
+    await db.collection("loans").deleteMany({ userId });
+    await db.collection<ProfileDoc>("profiles").deleteOne({ _id: userId });
+
+    try {
+      const auth = getFirebaseAdminAuth();
+      await auth.deleteUser(userId);
+    } catch (e: unknown) {
+      const code =
+        e && typeof e === "object" && "code" in e
+          ? String((e as { code: string }).code)
+          : "";
+      if (code !== "auth/user-not-found") {
+        throw e;
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to delete user.";
+    return { error: msg };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/orders");
+  revalidatePath("/home");
   return { ok: true as const };
 }
 
@@ -385,5 +436,32 @@ export async function updateGlobalHomeProductsEnabled(input: {
   revalidatePath("/admin");
   revalidatePath("/home");
   revalidatePath("/orders");
+  return { ok: true as const };
+}
+
+export async function updatePaymentReceiveUpi(input: { upiId: string | null }) {
+  const { db, error: authError } = await requireAdminDb();
+  if (!db) return { error: authError ?? "Database not available." };
+
+  const trimmed = input.upiId?.trim() || null;
+
+  try {
+    await db.collection<AppSettingPaymentUpiDoc>("app_settings").updateOne(
+      { _id: "payment_upi" },
+      {
+        $set: {
+          upi_id: trimmed,
+          updated_at: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+  } catch (e) {
+    const msg =
+      e instanceof Error ? e.message : "Failed to update repayment UPI.";
+    return { error: msg };
+  }
+  revalidatePath("/admin");
+  revalidatePath("/payment");
   return { ok: true as const };
 }

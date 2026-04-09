@@ -12,20 +12,30 @@ import utrHowToFind from "@/assets/utr-how-to-find.png";
 
 const INITIAL_SECONDS = 5 * 60 + 10; // 05:10
 
-/** Shown in UI; copy uses full UPI for wallet paste. */
-const UPI_MASKED = "s****2@ibl";
-const UPI_COPY_VALUE = "smartkredit.pay@ibl";
-
 function formatTime(total: number) {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function PaymentCheckout() {
+export function PaymentCheckout({
+  paymentReceiveUpi,
+}: {
+  /** Merchant UPI from admin (`app_settings.payment_upi`). */
+  paymentReceiveUpi: string | null;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const payableAmountRupees = searchParams.get("payableAmountRupees");
+  const upiTrimmed = paymentReceiveUpi?.trim() ?? "";
+  const hasUpi = upiTrimmed.length > 0;
+  const upiDisplay = hasUpi ? upiTrimmed : "—";
+  const qrPayPayload = hasUpi
+    ? `upi://pay?pa=${encodeURIComponent(upiTrimmed)}&cu=INR&pn=${encodeURIComponent("Smart Kredit")}`
+    : "";
+  const qrSrc = hasUpi
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(qrPayPayload)}`
+    : "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=smartkredit%3Apay%3Aref-demo";
   const [secondsLeft, setSecondsLeft] = useState(INITIAL_SECONDS);
   const [qrVisible, setQrVisible] = useState(false);
   const [refNo, setRefNo] = useState("");
@@ -58,14 +68,15 @@ export function PaymentCheckout() {
   const onShowQr = useCallback(() => setQrVisible(true), []);
 
   const copyUpi = useCallback(async () => {
+    if (!hasUpi) return;
     try {
-      await navigator.clipboard.writeText(UPI_COPY_VALUE);
+      await navigator.clipboard.writeText(upiTrimmed);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [hasUpi, upiTrimmed]);
 
   const onSubmit = useCallback(() => {
     if (refDigits.length === 0) {
@@ -81,19 +92,32 @@ export function PaymentCheckout() {
   }, [refDigits.length]);
 
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-white pb-6">
-      <header className="relative flex items-center justify-center bg-brand-indigo py-3.5 text-white shadow-sm">
-        <Link
-          href="/home"
-          className="absolute left-3 flex size-10 cursor-pointer items-center justify-center rounded-full transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          aria-label="Back to home"
-        >
-          <ArrowLeft className="size-5" strokeWidth={2} />
-        </Link>
-        <h1 className="text-base font-medium lowercase tracking-wide">payment</h1>
+    <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-gradient-to-b from-[#ebe4fb] via-[#ede8f7] to-[#e2daf3] pb-6">
+      <header className="relative overflow-hidden rounded-b-[1.75rem] bg-gradient-to-br from-[#ebe4fb] via-[#dfd4f5] to-[#d3c6ee] px-4 pb-8 pt-4 shadow-md">
+        <div
+          className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-brand-plum/8"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-8 -left-8 size-32 rounded-full bg-brand-plum/6"
+          aria-hidden
+        />
+        <div className="relative flex items-center justify-center">
+          <Link
+            href="/home"
+            className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full p-2 text-brand-plum ring-1 ring-brand-plum/20 transition hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-plum"
+            aria-label="Back to home"
+          >
+            <ArrowLeft className="size-6" strokeWidth={2} />
+          </Link>
+          <h1 className="font-[family-name:var(--font-montserrat)] text-lg font-semibold tracking-tight text-brand-plum">
+            Repayment
+          </h1>
+        </div>
       </header>
 
-      <div className="mx-auto w-full max-w-md flex-1 px-4 pt-8">
+      <div className="relative z-[1] mx-auto w-full max-w-md flex-1 -mt-10 px-4">
+        <div className="overflow-hidden rounded-[1.25rem] bg-white px-4 py-6 shadow-[0_8px_30px_rgba(60,21,91,0.08)] ring-1 ring-zinc-100 sm:px-5">
         <p className="text-[15px] font-medium text-zinc-600">Amount Payable</p>
         <div className="mt-2 flex items-start justify-between gap-3">
           <div>
@@ -126,7 +150,7 @@ export function PaymentCheckout() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=smartkredit%3Apay%3Aref-demo"
+                src={qrSrc}
                 alt=""
                 width={260}
                 height={260}
@@ -213,19 +237,17 @@ export function PaymentCheckout() {
               <p className="text-xs font-medium text-zinc-500">1. Manual transfer</p>
               <div className="mt-2 flex items-stretch gap-2">
                 <div className="flex min-w-0 flex-1 items-center rounded-lg bg-zinc-100 px-3 py-2.5 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200/80">
-                  {UPI_MASKED}
+                  {upiDisplay}
                 </div>
                 <button
                   type="button"
                   onClick={copyUpi}
-                  className="shrink-0 cursor-pointer rounded-lg bg-[#5c93e6] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4a82d4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5c93e6]"
+                  disabled={!hasUpi}
+                  className="shrink-0 cursor-pointer rounded-lg bg-[#5c93e6] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4a82d4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5c93e6] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                Tip: Don&apos;t save the UPI, get new UPI every time.
-              </p>
             </div>
 
             <div className="mt-6 border-t border-zinc-100 pt-5">
@@ -285,10 +307,11 @@ export function PaymentCheckout() {
           <button
             type="button"
             onClick={onSubmit}
-            className="w-full cursor-pointer rounded-xl bg-brand-indigo py-3.5 text-base font-semibold text-white transition hover:bg-brand-indigo/92 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+            className="w-full cursor-pointer rounded-xl bg-gradient-to-r from-[#4a7bff] to-brand-indigo py-3.5 text-base font-semibold text-white shadow-md transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
           >
             Submit
           </button>
+        </div>
         </div>
       </div>
 

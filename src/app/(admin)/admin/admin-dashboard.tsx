@@ -4,9 +4,11 @@ import {
   createLoan,
   createUser,
   deleteLoan,
+  deleteUser,
   syncDefaultLoansForAllUsers,
   type LoanStatus,
   updateGlobalHomeProductsEnabled,
+  updatePaymentReceiveUpi,
   updateHomeProductEnabled,
   updateLoan,
   updateProfile,
@@ -95,6 +97,12 @@ function loanStats(loans: AdminLoanRow[] | null) {
 
 const STATUS_OPTIONS: LoanStatus[] = ["pending", "active", "settled"];
 
+function loanStatusLabel(status: LoanStatus): string {
+  if (status === "active") return "Waiting for repayment";
+  if (status === "settled") return "Settled";
+  return "Pending";
+}
+
 export function AdminDashboard({
   users,
   searchQ,
@@ -103,6 +111,7 @@ export function AdminDashboard({
   totalCount,
   stats,
   globalHomeProductsEnabled,
+  paymentReceiveUpi,
 }: {
   users: AdminUserRow[];
   searchQ: string;
@@ -111,12 +120,18 @@ export function AdminDashboard({
   totalCount: number;
   stats: { usersCount: number; avail: number; settled: number };
   globalHomeProductsEnabled: boolean;
+  /** Shown on app repayment / manual transfer (Mongo `app_settings.payment_upi`). */
+  paymentReceiveUpi: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [openId, setOpenId] = useState<string | null>(users[0]?.id ?? null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const [repaymentUpiDraft, setRepaymentUpiDraft] = useState(
+    paymentReceiveUpi ?? "",
+  );
 
   const totals = useMemo(() => stats, [stats]);
 
@@ -132,6 +147,7 @@ export function AdminDashboard({
 
   function runAction(fn: () => Promise<{ error?: string; ok?: boolean }>) {
     setMsg(null);
+    setInfoMsg(null);
     startTransition(async () => {
       const r = await fn();
       if (r.error) setMsg(r.error);
@@ -160,15 +176,6 @@ export function AdminDashboard({
               <h1 className="font-[family-name:var(--font-montserrat)] text-xl font-bold tracking-tight text-brand-plum sm:text-2xl lg:text-xl lg:font-semibold lg:text-zinc-900">
                 Admin console
               </h1>
-              <p className="mt-0.5 text-sm text-brand-plum/60 lg:text-sm lg:text-zinc-500">
-                <span className="lg:hidden">
-                  Available = active + pending. Settled = closed loans.
-                </span>
-                <span className="hidden lg:inline">
-                  Overview and user directory — available = active + pending
-                  loans.
-                </span>
-              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -198,13 +205,14 @@ export function AdminDashboard({
               type="button"
               onClick={() => {
                 setMsg(null);
+                setInfoMsg(null);
                 startTransition(async () => {
                   const r = await syncDefaultLoansForAllUsers();
                   if (r.error) {
                     setMsg(r.error);
                     return;
                   }
-                  setMsg(
+                  setInfoMsg(
                     `Default loans synced for ${r.userCount} user profile(s).`,
                   );
                   router.refresh();
@@ -269,6 +277,15 @@ export function AdminDashboard({
           </div>
         </section>
 
+        {infoMsg ? (
+          <p
+            className="whitespace-pre-wrap rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-200 lg:mx-8 lg:mt-4 lg:rounded-md"
+            role="status"
+          >
+            {infoMsg}
+          </p>
+        ) : null}
+
         {msg ? (
           <p
             className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200 lg:mx-8 lg:mt-4 lg:rounded-md"
@@ -291,6 +308,49 @@ export function AdminDashboard({
             }
           />
         ) : null}
+
+        <div className="border-b border-zinc-200 px-4 py-4 lg:px-8">
+          <div className="rounded-xl border border-brand-plum/12 bg-brand-lavender/25 p-4">
+            <p className="text-sm font-semibold text-brand-plum">
+              Repayment UPI (global)
+            </p>
+            <p className="mt-1 text-xs text-brand-plum/60">
+              This UPI ID is shown on the payment page for all users.
+            </p>
+            <form
+              className="mt-3 flex flex-wrap items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                runAction(async () => {
+                  const r = await updatePaymentReceiveUpi({
+                    upiId: repaymentUpiDraft.trim() || null,
+                  });
+                  if (!r.error) {
+                    setInfoMsg("Repayment UPI updated.");
+                  }
+                  return r;
+                });
+              }}
+            >
+              <input
+                type="text"
+                value={repaymentUpiDraft}
+                onChange={(e) => setRepaymentUpiDraft(e.target.value)}
+                placeholder="name@bankupi"
+                autoComplete="off"
+                className="min-w-0 flex-1 rounded-lg border border-brand-plum/20 bg-white px-3 py-2 text-sm font-mono text-brand-plum"
+                disabled={pending}
+              />
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-lg bg-brand-indigo px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Save
+              </button>
+            </form>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-4 lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-4">
           <div>
@@ -438,19 +498,40 @@ export function AdminDashboard({
                       {(u.loans ?? []).length}
                     </td>
                     <td className="px-2 py-3 text-right lg:px-3 lg:py-3.5">
-                      <button
-                        type="button"
-                        onClick={() => setOpenId(open ? null : u.id)}
-                        className="inline-flex size-9 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-800 max-lg:text-brand-indigo max-lg:hover:bg-brand-lavender"
-                        aria-expanded={open}
-                        aria-label={open ? "Collapse loans" : "Expand loans"}
-                      >
-                        {open ? (
-                          <ChevronDown className="size-5" />
-                        ) : (
-                          <ChevronRight className="size-5" />
-                        )}
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              typeof window !== "undefined" &&
+                              !window.confirm(
+                                "Delete this user and all associated loans?",
+                              )
+                            ) {
+                              return;
+                            }
+                            runAction(() => deleteUser(u.id));
+                          }}
+                          className="inline-flex size-9 items-center justify-center rounded-md text-red-600 transition hover:bg-red-50"
+                          aria-label="Delete user"
+                          title="Delete user"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOpenId(open ? null : u.id)}
+                          className="inline-flex size-9 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-800 max-lg:text-brand-indigo max-lg:hover:bg-brand-lavender"
+                          aria-expanded={open}
+                          aria-label={open ? "Collapse loans" : "Expand loans"}
+                        >
+                          {open ? (
+                            <ChevronDown className="size-5" />
+                          ) : (
+                            <ChevronRight className="size-5" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -951,7 +1032,7 @@ function LoanPanel({
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {loanStatusLabel(s)}
                 </option>
               ))}
             </select>
@@ -1232,7 +1313,7 @@ function LoanRow({
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {loanStatusLabel(s)}
                 </option>
               ))}
             </select>
@@ -1312,8 +1393,8 @@ function LoanRow({
         <p className="mt-2 font-[family-name:var(--font-montserrat)] text-lg font-bold tabular-nums text-brand-plum lg:mt-3 lg:text-xl">
           ₹{formatInr(Number(loan.amount_rupees))}
         </p>
-        <p className={`mt-1 text-sm font-semibold capitalize ${statusClass}`}>
-          {loan.status}
+        <p className={`mt-1 text-sm font-semibold ${statusClass}`}>
+          {loanStatusLabel(loan.status)}
         </p>
         {loan.external_ref ? (
           <p className="mt-1 text-xs text-brand-plum/50">

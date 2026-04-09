@@ -4,7 +4,9 @@ import {
 } from "@/lib/firebase/admin";
 import { isMongoConfigured } from "@/lib/mongodb/client";
 import {
+  findProfileUidByPhone,
   getPostLoginRedirectPath,
+  releasePhoneFromOtherProfiles,
   syncGoogleProfileToMongo,
   upsertPhoneProfile,
 } from "@/lib/mongodb/profile";
@@ -59,9 +61,12 @@ export async function POST(request: NextRequest) {
       if (phone !== assertedPhoneE164) {
         return NextResponse.json({ error: "phone_mismatch" }, { status: 400 });
       }
-      await upsertPhoneProfile(uid, phone);
-      const redirectTo = await getPostLoginRedirectPath(uid);
-      await createSession(phone, uid, {
+      // Reuse existing profile by phone to keep login idempotent.
+      const canonicalUid = (await findProfileUidByPhone(phone)) ?? uid;
+      await upsertPhoneProfile(canonicalUid, phone);
+      await releasePhoneFromOtherProfiles(phone, canonicalUid);
+      const redirectTo = await getPostLoginRedirectPath(canonicalUid);
+      await createSession(phone, canonicalUid, {
         repeatCustomer: redirectTo === "/orders",
       });
       return NextResponse.json({ ok: true, redirectTo });
@@ -75,9 +80,17 @@ export async function POST(request: NextRequest) {
     const displayName =
       (typeof decoded.name === "string" ? decoded.name : null) ?? null;
 
-    await syncGoogleProfileToMongo(uid, email, displayName, assertedPhoneE164);
-    const redirectTo = await getPostLoginRedirectPath(uid);
-    await createEmailSession(email, uid, {
+    // Reuse existing profile by phone to avoid duplicate users across logins.
+    const canonicalUid = (await findProfileUidByPhone(assertedPhoneE164)) ?? uid;
+    await syncGoogleProfileToMongo(
+      canonicalUid,
+      email,
+      displayName,
+      assertedPhoneE164,
+    );
+    await releasePhoneFromOtherProfiles(assertedPhoneE164, canonicalUid);
+    const redirectTo = await getPostLoginRedirectPath(canonicalUid);
+    await createEmailSession(email, canonicalUid, {
       repeatCustomer: redirectTo === "/orders",
     });
 

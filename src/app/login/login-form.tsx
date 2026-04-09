@@ -222,11 +222,12 @@ export function LoginForm() {
       noValidate
     >
       <p className="text-sm text-brand-plum/75">
-        Please enter your mobile number
+        Please enter your mobile number{" "}
+        <span className="font-medium text-brand-plum/55">(mandatory)</span>
       </p>
 
       <label className="block">
-        <span className="sr-only">Phone number</span>
+        <span className="sr-only">Phone number (mandatory)</span>
         <div className="flex items-center gap-2 rounded-full bg-brand-lavender/90 px-4 py-3.5 ring-1 ring-brand-plum/10 transition-[box-shadow] focus-within:ring-2 focus-within:ring-brand-indigo/40">
           <Smartphone
             className="size-5 shrink-0 text-brand-indigo"
@@ -241,9 +242,14 @@ export function LoginForm() {
             placeholder="Enter phone number"
             value={phoneDigits}
             onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            aria-required="true"
             className="min-w-0 flex-1 bg-transparent text-base text-brand-plum placeholder:text-brand-plum/35 outline-none"
           />
         </div>
+        <p className="mt-2 text-xs leading-relaxed text-brand-plum/50">
+          Phone number is mandatory — required for OTP, Login / Register, and Login via
+          Gmail.
+        </p>
       </label>
 
       <label className="block">

@@ -1,6 +1,10 @@
 import type { HomeProductId } from "@/lib/home-products";
 import { getMongoDb } from "@/lib/mongodb/client";
-import type { AppSettingHomeProductsDoc, ProfileDoc } from "@/lib/mongodb/types";
+import type {
+  AppSettingHomeProductsDoc,
+  AppSettingPaymentUpiDoc,
+  ProfileDoc,
+} from "@/lib/mongodb/types";
 import type { SessionPayload } from "@/lib/session-types";
 
 /** Resolves Firebase UID for DB queries from cookie session. */
@@ -48,5 +52,22 @@ export async function areHomeProductsGloballyEnabled(): Promise<boolean> {
     return doc?.globally_enabled !== false;
   } catch {
     return true;
+  }
+}
+
+/** UPI VPA for manual repayment (admin-configured; empty if unset). */
+export async function getPaymentReceiveUpi(): Promise<string | null> {
+  try {
+    const db = await getMongoDb();
+    const doc = await db
+      .collection<AppSettingPaymentUpiDoc>("app_settings")
+      .findOne({ _id: "payment_upi" });
+    const legacyV = (doc as { upiId?: string | null } | null)?.upiId;
+    const v = (doc?.upi_id ?? legacyV)?.trim();
+    return v || null;
+  } catch (error) {
+    // Keep UI resilient but surface operational issues in server logs.
+    console.error("[payment-upi] failed to load repayment UPI", error);
+    return null;
   }
 }

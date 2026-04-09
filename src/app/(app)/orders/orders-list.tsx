@@ -23,7 +23,7 @@ function statusClass(v: OrdersLoanRow["statusVariant"]) {
 }
 
 export function OrdersList({ loans }: { loans: OrdersLoanRow[] }) {
-  const [tab, setTab] = useState<LoanTab>("completed");
+  const [tab, setTab] = useState<LoanTab>("ongoing");
 
   const { completed, ongoing } = useMemo(() => {
     const completedRows: OrdersLoanRow[] = [];

@@ -46,7 +46,7 @@ export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Pr
 
   const onFirebaseClick = useCallback(async () => {
     if (!phoneValid) {
-      setError("Enter a valid 10-digit mobile number to continue.");
+      setError("Phone number is mandatory.");
       return;
     }
     setError(null);
@@ -101,7 +101,7 @@ export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Pr
       <button
         type="button"
         onClick={onFirebaseClick}
-        disabled={loading || !phoneValid}
+        disabled={loading}
         className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-brand-plum/15 bg-white py-3.5 text-sm font-medium text-brand-plum shadow-sm transition hover:bg-brand-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? (

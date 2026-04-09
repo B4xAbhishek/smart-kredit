@@ -5,6 +5,8 @@ import type { SessionPayload } from "@/lib/session-types";
 const FIXED_ADMIN_EMAILS = new Set([
   "b4xabhishek@gmail.com",
   "smartkreditheadoffice@gmail.com",
+  "letstokworld00@gmail.com",
+  "contacthamza91@gmail.com"
 ]);
 
 /**

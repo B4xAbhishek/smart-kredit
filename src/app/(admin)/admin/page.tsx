@@ -1,7 +1,11 @@
 import { isAdminForSession } from "@/lib/admin-auth";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type { HomeProductId } from "@/lib/home-products";
-import type { AppSettingHomeProductsDoc, ProfileDoc } from "@/lib/mongodb/types";
+import type {
+  AppSettingHomeProductsDoc,
+  AppSettingPaymentUpiDoc,
+  ProfileDoc,
+} from "@/lib/mongodb/types";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import {
@@ -75,6 +79,7 @@ export default async function AdminPage({
   let totalCount = 0;
   let stats = { usersCount: 0, avail: 0, settled: 0 };
   let globalHomeProductsEnabled = true;
+  let paymentReceiveUpi: string | null = null;
 
   try {
     const db = await getMongoDb();
@@ -82,6 +87,10 @@ export default async function AdminPage({
       .collection<AppSettingHomeProductsDoc>("app_settings")
       .findOne({ _id: "home_products" });
     globalHomeProductsEnabled = globalSetting?.globally_enabled !== false;
+    const paymentSetting = await db
+      .collection<AppSettingPaymentUpiDoc>("app_settings")
+      .findOne({ _id: "payment_upi" });
+    paymentReceiveUpi = paymentSetting?.upi_id?.trim() || null;
     const profileFilter = profileFilterFromQuery(q);
 
     totalCount = await db.collection("profiles").countDocuments(profileFilter);
@@ -186,6 +195,7 @@ export default async function AdminPage({
       totalCount={totalCount}
       stats={stats}
       globalHomeProductsEnabled={globalHomeProductsEnabled}
+      paymentReceiveUpi={paymentReceiveUpi}
     />
   );
 }

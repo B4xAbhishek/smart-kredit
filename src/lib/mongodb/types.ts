@@ -43,3 +43,11 @@ export type AppSettingHomeProductsDoc = {
   globally_enabled?: boolean;
   updated_at?: Date;
 };
+
+/** Merchant VPA shown on the repayment / manual transfer screen (set by admin). */
+export type AppSettingPaymentUpiDoc = {
+  _id: "payment_upi";
+  /** UPI ID customers pay to (e.g. name@bankupi). */
+  upi_id?: string | null;
+  updated_at?: Date;
+};

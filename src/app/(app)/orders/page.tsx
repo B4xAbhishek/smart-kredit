@@ -1,4 +1,9 @@
-import { isHomeProductEnabledForUser, isHomeProductId } from "@/lib/home-products";
+import {
+  HOME_PRODUCTS,
+  isHomeProductEnabledForUser,
+  isHomeProductId,
+  type HomeProductId,
+} from "@/lib/home-products";
 import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import { getSession } from "@/lib/session";
@@ -38,6 +43,38 @@ function normalizeLoanStatus(status: unknown): "settled" | "active" | "pending" 
   return "pending";
 }
 
+/** Same as order detail page — unpaid total shown on Repayment / payment links. */
+const ORDER_INTEREST_FEE_RUPEES = 45;
+
+/**
+ * Resolves KS-7500 / SL-6500 when `default_product_key` is missing on older loan docs.
+ */
+function resolveHomeProductKeyForLoan(row: {
+  product_name?: string;
+  amount_rupees?: unknown;
+  default_product_key?: string;
+}): HomeProductId | null {
+  const k = String(row.default_product_key ?? "");
+  if (k && isHomeProductId(k)) {
+    return k;
+  }
+
+  const amount = Math.round(Number(row.amount_rupees ?? 0));
+  const name = String(row.product_name ?? "").trim();
+
+  for (const p of Object.values(HOME_PRODUCTS)) {
+    if (p.productName === name && p.loanAmountRupees === amount) {
+      return p.id;
+    }
+  }
+  for (const p of Object.values(HOME_PRODUCTS)) {
+    if (p.loanAmountRupees === amount) {
+      return p.id;
+    }
+  }
+  return null;
+}
+
 export default async function OrdersPage() {
   let loans: OrdersLoanRow[] = [];
 
@@ -72,14 +109,23 @@ export default async function OrdersPage() {
             : status === "active"
               ? "Waiting for repayment"
               : "Pending";
-        const key = row.default_product_key;
-        const detailHref =
-          status !== "settled" &&
-          key &&
-          isHomeProductId(key) &&
-          isHomeProductEnabledForUser(homeProductEnabled, key)
-            ? `/order/${key}`
-            : undefined;
+        const amountRupees = Number(row.amount_rupees ?? 0);
+        const productKey = resolveHomeProductKeyForLoan(row);
+        const payableTotal = amountRupees + ORDER_INTEREST_FEE_RUPEES;
+
+        let detailHref: string | undefined;
+        if (status === "settled") {
+          detailHref = undefined;
+        } else if (
+          productKey &&
+          isHomeProductEnabledForUser(homeProductEnabled, productKey)
+        ) {
+          detailHref = `/order/${productKey}`;
+        } else if (amountRupees > 0) {
+          detailHref = `/payment?payableAmountRupees=${payableTotal}`;
+        } else {
+          detailHref = undefined;
+        }
 
         return {
           id: String(doc._id),

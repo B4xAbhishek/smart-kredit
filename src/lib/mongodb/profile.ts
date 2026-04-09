@@ -48,6 +48,76 @@ export async function upsertPhoneProfile(uid: string, phoneE164: string) {
   await ensureDefaultLoansForUser(uid);
 }
 
+/** Returns existing profile UID by phone when present. */
+export async function findProfileUidByPhone(
+  phoneE164: string,
+): Promise<string | null> {
+  const phoneDigits = phoneE164.replace(/\D/g, "");
+  const national10 = phoneDigits.slice(-10);
+  const looseIndianPattern =
+    national10.length === 10
+      ? new RegExp(`^(?:\\+?91)?\\D*${national10.split("").join("\\D*")}\\D*$`)
+      : null;
+  const db = await getMongoDb();
+  const doc = await db.collection<ProfileDoc>("profiles").findOne(
+    {
+      $or: [
+        { phone_e164: phoneE164 },
+        { phone: phoneE164 },
+        ...(looseIndianPattern
+          ? [
+              { phone_e164: { $regex: looseIndianPattern } },
+              { phone: { $regex: looseIndianPattern } },
+            ]
+          : []),
+      ],
+    },
+    { projection: { _id: 1 } },
+  );
+  return doc?._id ?? null;
+}
+
+/**
+ * True if another profile (different Firebase UID) already has this phone.
+ * Used to block Google sign-in from claiming a number tied to another account.
+ */
+export async function findOtherProfileWithPhone(
+  phoneE164: string,
+  excludeUid: string,
+): Promise<string | null> {
+  const db = await getMongoDb();
+  const doc = await db.collection<ProfileDoc>("profiles").findOne(
+    {
+      _id: { $ne: excludeUid },
+      $or: [{ phone_e164: phoneE164 }, { phone: phoneE164 }],
+    },
+    { projection: { _id: 1 } },
+  );
+  return doc?._id ?? null;
+}
+
+/**
+ * After phone OTP sign-in, clear this number from any other profile rows so
+ * Mongo stays one-phone-one-user even if someone previously used Google + same digits.
+ */
+export async function releasePhoneFromOtherProfiles(
+  phoneE164: string,
+  canonicalUid: string,
+): Promise<void> {
+  const db = await getMongoDb();
+  const now = new Date();
+  await db.collection<ProfileDoc>("profiles").updateMany(
+    {
+      _id: { $ne: canonicalUid },
+      $or: [{ phone_e164: phoneE164 }, { phone: phoneE164 }],
+    },
+    {
+      $unset: { phone_e164: "", phone: "" },
+      $set: { updated_at: now },
+    },
+  );
+}
+
 export async function getProfileSeenHome(uid: string): Promise<boolean> {
   const db = await getMongoDb();
   const doc = await db.collection<ProfileDoc>("profiles").findOne(
