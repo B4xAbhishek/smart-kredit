@@ -1,10 +1,10 @@
 import { AccountPromoIllustration } from "@/components/account/AccountPromoIllustration";
-import { DEFAULT_CONTACT_TEL } from "@/lib/contact";
+import { contactMailtoHref, DEFAULT_CONTACT_EMAIL } from "@/lib/contact";
 import {
   ChevronRight,
   FileText,
   LogOut,
-  Phone,
+  Mail,
   Scale,
   Shield,
   UserRound,
@@ -14,14 +14,14 @@ import Link from "next/link";
 type AccountShellProps = {
   accountLabel: string;
   signOut: () => Promise<void>;
-  contactTel?: string;
+  contactEmail?: string;
   showAdminLink?: boolean;
 };
 
 export function AccountShell({
   accountLabel,
   signOut,
-  contactTel = DEFAULT_CONTACT_TEL,
+  contactEmail = DEFAULT_CONTACT_EMAIL,
   showAdminLink = false,
 }: AccountShellProps) {
   return (
@@ -77,11 +77,11 @@ export function AccountShell({
           ) : null}
 
           <Link
-            href={`tel:${contactTel}`}
+            href={contactMailtoHref(contactEmail)}
             className="group flex cursor-pointer items-center gap-3 rounded-xl bg-white px-3 py-3.5 shadow-sm ring-1 ring-zinc-100 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-indigo text-white shadow-sm">
-              <Phone className="size-5" strokeWidth={2} aria-hidden />
+              <Mail className="size-5" strokeWidth={2} aria-hidden />
             </span>
             <span className="flex-1 text-[15px] font-medium text-zinc-900">
               Contact Us

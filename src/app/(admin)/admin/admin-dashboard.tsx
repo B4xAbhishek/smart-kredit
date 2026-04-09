@@ -7,7 +7,7 @@ import {
   deleteUser,
   syncDefaultLoansForAllUsers,
   type LoanStatus,
-  updateGlobalHomeProductsEnabled,
+  updateGlobalHomeProductEnabled,
   updatePaymentReceiveUpi,
   updateHomeProductEnabled,
   updateLoan,
@@ -16,6 +16,7 @@ import {
 import {
   HOME_PRODUCTS,
   HOME_PRODUCT_IDS,
+  isHomeProductSwitchOn,
   type HomeProductId,
 } from "@/lib/home-products";
 import {
@@ -98,9 +99,8 @@ function loanStats(loans: AdminLoanRow[] | null) {
 const STATUS_OPTIONS: LoanStatus[] = ["pending", "active", "settled"];
 
 function loanStatusLabel(status: LoanStatus): string {
-  if (status === "active") return "Waiting for repayment";
   if (status === "settled") return "Settled";
-  return "Pending";
+  return "Waiting for repayment";
 }
 
 export function AdminDashboard({
@@ -110,7 +110,7 @@ export function AdminDashboard({
   pageSize,
   totalCount,
   stats,
-  globalHomeProductsEnabled,
+  globalHomeProductEnabled,
   paymentReceiveUpi,
 }: {
   users: AdminUserRow[];
@@ -119,7 +119,8 @@ export function AdminDashboard({
   pageSize: number;
   totalCount: number;
   stats: { usersCount: number; avail: number; settled: number };
-  globalHomeProductsEnabled: boolean;
+  /** Effective global map (includes legacy `globally_enabled` kill-switch). */
+  globalHomeProductEnabled: Partial<Record<HomeProductId, boolean>> | null;
   /** Shown on app repayment / manual transfer (Mongo `app_settings.payment_upi`). */
   paymentReceiveUpi: string | null;
 }) {
@@ -179,28 +180,55 @@ export function AdminDashboard({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-brand-plum/20 bg-white px-3 py-1.5">
-              <span className="text-xs font-medium text-zinc-600">
-                Products (all users): {globalHomeProductsEnabled ? "On" : "Off"}
-              </span>
-              <input
-                type="checkbox"
-                role="switch"
-                checked={globalHomeProductsEnabled}
-                disabled={pending}
-                onChange={(e) =>
-                  runAction(() =>
-                    updateGlobalHomeProductsEnabled({
-                      enabled: e.target.checked,
-                    }),
-                  )
-                }
-                className="peer sr-only"
-              />
-              <span className="relative inline-block h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-indigo peer-disabled:opacity-50 peer-checked:[&>span]:translate-x-5">
-                <span className="absolute left-0.5 top-0.5 block size-5 rounded-full bg-white shadow transition-transform" />
-              </span>
-            </label>
+            <div className="flex max-w-full flex-col gap-2 rounded-xl border border-brand-plum/15 bg-white px-3 py-2.5 shadow-sm ring-1 ring-zinc-100/80 sm:max-w-none">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                Global · Home products
+              </p>
+              <ul className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                {HOME_PRODUCT_IDS.map((pid) => {
+                  const meta = HOME_PRODUCTS[pid];
+                  const on = isHomeProductSwitchOn(globalHomeProductEnabled, pid);
+                  return (
+                    <li
+                      key={pid}
+                      className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg bg-zinc-50/90 px-2.5 py-1.5 ring-1 ring-zinc-200/80 sm:min-w-[200px] sm:flex-initial"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-zinc-800">
+                          {meta.productName}
+                        </p>
+                        <p className="font-mono text-[10px] tabular-nums text-zinc-500">
+                          {pid} · ₹{formatInr(meta.loanAmountRupees)}
+                        </p>
+                      </div>
+                      <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5">
+                        <span className="text-[10px] font-medium text-zinc-500">
+                          {on ? "On" : "Off"}
+                        </span>
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={on}
+                          disabled={pending}
+                          onChange={(e) =>
+                            runAction(() =>
+                              updateGlobalHomeProductEnabled({
+                                productId: pid,
+                                enabled: e.target.checked,
+                              }),
+                            )
+                          }
+                          className="peer sr-only"
+                        />
+                        <span className="relative inline-block h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-indigo peer-disabled:opacity-50 peer-checked:[&>span]:translate-x-5">
+                          <span className="absolute left-0.5 top-0.5 block size-5 rounded-full bg-white shadow transition-transform" />
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -594,6 +622,7 @@ export function AdminDashboard({
           <LoanPanel
             key={`panel-${u.id}`}
             user={u}
+            globalHomeProductEnabled={globalHomeProductEnabled}
             disabled={pending}
             onCreate={(fields) =>
               runAction(() =>
@@ -857,6 +886,7 @@ function ProfileNameCell({
 
 function LoanPanel({
   user,
+  globalHomeProductEnabled,
   disabled,
   onCreate,
   onUpdate,
@@ -864,6 +894,8 @@ function LoanPanel({
   onHomeProductToggle,
 }: {
   user: AdminUserRow;
+  /** Effective global map; when both products off, home shows no KS/SL cards for anyone. */
+  globalHomeProductEnabled: Partial<Record<HomeProductId, boolean>> | null;
   disabled: boolean;
   onCreate: (fields: {
     productName: string;
@@ -923,12 +955,27 @@ function LoanPanel({
         </h3>
         <p className="mt-1 text-xs text-brand-plum/55">
           Control whether Kredit Smart and Smart Loan appear for this user on the
-          home screen.
+          home screen. IDs like KS-7500 are product keys (routes), not the live
+          principal — amounts come from the DEFAULT loan rows below.
         </p>
+        {HOME_PRODUCT_IDS.every(
+          (pid) => globalHomeProductEnabled?.[pid] === false,
+        ) ? (
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 ring-1 ring-amber-200/80">
+            Both global Home product switches are Off (or the legacy all-products
+            switch was Off) — Kredit Smart and Smart Loan are hidden on Home for
+            everyone. Turn at least one global switch On for those products to
+            appear; per-user toggles below only apply when the matching global
+            switch is On.
+          </p>
+        ) : null}
         <ul className="mt-3 space-y-3">
           {HOME_PRODUCT_IDS.map((pid) => {
             const meta = HOME_PRODUCTS[pid];
-            const on = user.home_product_enabled?.[pid] !== false;
+            const on = isHomeProductSwitchOn(user.home_product_enabled, pid);
+            const defaultLoan = user.loans?.find(
+              (l) => l.default_product_key === pid,
+            );
             return (
               <li
                 key={pid}
@@ -940,6 +987,11 @@ function LoanPanel({
                   </p>
                   <p className="font-mono text-[11px] text-brand-plum/45">
                     {pid}
+                    {defaultLoan != null ? (
+                      <span className="ml-1.5 text-brand-plum/70">
+                        · Principal ₹{formatInr(defaultLoan.amount_rupees)}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
                 <label className="inline-flex cursor-pointer items-center gap-2">

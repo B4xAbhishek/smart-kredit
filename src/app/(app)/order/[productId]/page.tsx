@@ -1,4 +1,9 @@
+import {
+  buildHomeProductLoanMap,
+  type HomeLoanDoc,
+} from "@/lib/home-product-loan";
 import { HOME_PRODUCTS, isHomeProductId, type HomeProductId } from "@/lib/home-products";
+import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import { getSession } from "@/lib/session";
 import { resolveProfileUserId } from "@/lib/session-profile";
@@ -63,7 +68,21 @@ export default async function OrderDetailPage({
   const session = await getSession();
   const userId = await resolveProfileUserId(session);
   const product = HOME_PRODUCTS[productId as HomeProductId];
-  const loanAmount = product.loanAmountRupees;
+  let loanAmount = product.loanAmountRupees;
+  if (userId) {
+    try {
+      await ensureDefaultLoansForUser(userId);
+      const db = await getMongoDb();
+      const docs = await db.collection("loans").find({ userId }).toArray();
+      const map = buildHomeProductLoanMap(docs as HomeLoanDoc[]);
+      const entry = map.get(productId);
+      if (entry) {
+        loanAmount = entry.amountRupees;
+      }
+    } catch {
+      // keep catalog fallback
+    }
+  }
   const interestFee = INTEREST_FEE_RUPEES;
   const unpaidAmount = loanAmount + interestFee;
   const dueDateDisplay = await getLoanDueDate(userId, productId);

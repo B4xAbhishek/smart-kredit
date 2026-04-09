@@ -18,8 +18,7 @@ export type OrdersLoanRow = {
 
 function statusClass(v: OrdersLoanRow["statusVariant"]) {
   if (v === "settled") return "text-emerald-600";
-  if (v === "active") return "text-amber-600";
-  return "text-zinc-500";
+  return "text-amber-600";
 }
 
 export function OrdersList({ loans }: { loans: OrdersLoanRow[] }) {
@@ -134,14 +133,7 @@ export function OrdersList({ loans }: { loans: OrdersLoanRow[] }) {
                     >
                       Detail
                     </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
-                    >
-                      Detail
-                    </button>
-                  )}
+                  ) : null}
                 </div>
               </article>
             </li>

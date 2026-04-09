@@ -1,18 +1,25 @@
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import {
   HOME_PRODUCTS,
-  isHomeProductEnabledForUser,
-  isHomeProductId,
+  isHomeProductSwitchOn,
+  type HomeProductId,
 } from "@/lib/home-products";
+import {
+  buildHomeProductLoanMap,
+  loanStatusDisplay,
+  normalizeLoanStatus,
+  type HomeLoanDoc,
+} from "@/lib/home-product-loan";
+import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import { markHomeVisitedForSession } from "@/lib/mongodb/profile";
 import { getSession } from "@/lib/session";
 import {
-  areHomeProductsGloballyEnabled,
+  getGlobalHomeProductEnabledMap,
   getHomeProductEnabledMapForSession,
   resolveProfileUserId,
 } from "@/lib/session-profile";
-import { DEFAULT_CONTACT_TEL } from "@/lib/contact";
+import { contactMailtoHref } from "@/lib/contact";
 import { Bell, CreditCard, Zap } from "lucide-react";
 import Link from "next/link";
 
@@ -28,39 +35,40 @@ export default async function HomePage() {
   const session = await getSession();
   await markHomeVisitedForSession(session);
   const enabledMap = await getHomeProductEnabledMapForSession(session);
-  const globallyEnabled = await areHomeProductsGloballyEnabled();
+  const globalMap = await getGlobalHomeProductEnabledMap();
   const profileId = await resolveProfileUserId(session);
-  const settledDefaultProducts = new Set<string>();
+  let loanByHomeId = new Map<
+    HomeProductId,
+    { amountRupees: number; status: string }
+  >();
 
   if (profileId) {
     try {
+      await ensureDefaultLoansForUser(profileId);
       const db = await getMongoDb();
-      const settledDefaultLoans = await db
+      const docs = await db
         .collection("loans")
-        .find(
-          {
-            userId: profileId,
-            status: { $regex: /^settled$/i },
-          },
-          { projection: { default_product_key: 1 } },
-        )
+        .find({ userId: profileId })
         .toArray();
-      for (const loan of settledDefaultLoans) {
-        const key = (loan as { default_product_key?: unknown }).default_product_key;
-        if (isHomeProductId(String(key ?? ""))) {
-          settledDefaultProducts.add(String(key));
-        }
-      }
+      loanByHomeId = buildHomeProductLoanMap(docs as HomeLoanDoc[]);
     } catch {
       // Keep home usable even if loan lookup fails.
     }
   }
 
-  const recommendationRows = Object.values(HOME_PRODUCTS).filter((row) =>
-    globallyEnabled &&
-    isHomeProductEnabledForUser(enabledMap, row.id) &&
-    !settledDefaultProducts.has(row.id),
-  );
+  const recommendationRows = Object.values(HOME_PRODUCTS).filter((row) => {
+    if (
+      !isHomeProductSwitchOn(globalMap, row.id) ||
+      !isHomeProductSwitchOn(enabledMap, row.id)
+    ) {
+      return false;
+    }
+    const fromDb = loanByHomeId.get(row.id);
+    if (fromDb && normalizeLoanStatus(fromDb.status) === "settled") {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <main className="px-4 pt-4">
@@ -75,9 +83,9 @@ export default async function HomePage() {
             boxClassName="w-auto max-w-none"
           />
           <Link
-            href={`tel:${DEFAULT_CONTACT_TEL}`}
+            href={contactMailtoHref()}
             className="shrink-0 self-center cursor-pointer rounded-full p-2.5 text-brand-plum ring-1 ring-brand-plum/10 transition hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
-            aria-label="Contact us"
+            aria-label="Contact us by email"
           >
             <Bell className="size-5" strokeWidth={1.75} />
           </Link>
@@ -132,7 +140,11 @@ export default async function HomePage() {
         </h2>
 
         <div className="mt-4 space-y-4">
-          {recommendationRows.map((row) => (
+          {recommendationRows.map((row) => {
+            const fromDb = loanByHomeId.get(row.id);
+            const amountRupees = fromDb ? fromDb.amountRupees : row.loanAmountRupees;
+            const statusUi = loanStatusDisplay(fromDb?.status ?? "active");
+            return (
             <article
               key={row.id}
               className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(60,21,91,0.08)] ring-1 ring-zinc-100"
@@ -152,8 +164,10 @@ export default async function HomePage() {
                     <p className="font-[family-name:var(--font-montserrat)] text-sm font-bold leading-snug text-zinc-900 sm:text-base">
                       {row.productName}
                     </p>
-                    <p className="shrink-0 font-[family-name:var(--font-montserrat)] text-[11px] font-semibold italic leading-tight text-amber-600 sm:text-right sm:text-sm">
-                      Waiting Repayment
+                    <p
+                      className={`shrink-0 font-[family-name:var(--font-montserrat)] text-[11px] font-semibold italic leading-tight sm:text-right sm:text-sm ${statusUi.className}`}
+                    >
+                      {statusUi.label}
                     </p>
                   </div>
                 </div>
@@ -168,7 +182,7 @@ export default async function HomePage() {
                 <div className="min-w-0">
                   <p className="text-[11px] text-zinc-500 sm:text-xs">Amount of money</p>
                   <p className="font-[family-name:var(--font-montserrat)] text-lg font-bold tabular-nums text-zinc-900 sm:text-xl">
-                    ₹ {formatInr(row.loanAmountRupees)}
+                    ₹ {formatInr(amountRupees)}
                   </p>
                 </div>
                 <Link
@@ -179,7 +193,8 @@ export default async function HomePage() {
                 </Link>
               </div>
             </article>
-          ))}
+            );
+          })}
 
           <div
             className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-indigo to-brand-plum p-5 text-white shadow-lg"

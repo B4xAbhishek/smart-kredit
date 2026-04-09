@@ -39,8 +39,13 @@ export type LoanDoc = {
 /** Global app-level settings stored by known `_id` keys. */
 export type AppSettingHomeProductsDoc = {
   _id: "home_products";
-  /** Default true when document/key is missing. */
+  /**
+   * Legacy single kill-switch: when `false`, both home products are treated as off
+   * unless migrated to `global_product_enabled`.
+   */
   globally_enabled?: boolean;
+  /** Per-product global visibility for Home; omit/`true` = shown, `false` = hidden. */
+  global_product_enabled?: HomeProductEnabledMap | null;
   updated_at?: Date;
 };
 

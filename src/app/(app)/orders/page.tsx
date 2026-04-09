@@ -1,9 +1,12 @@
 import {
-  HOME_PRODUCTS,
   isHomeProductEnabledForUser,
   isHomeProductId,
   type HomeProductId,
 } from "@/lib/home-products";
+import {
+  normalizeLoanStatus,
+  resolveHomeProductKeyForLoan,
+} from "@/lib/home-product-loan";
 import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import { getSession } from "@/lib/session";
@@ -12,6 +15,10 @@ import {
   resolveProfileUserId,
 } from "@/lib/session-profile";
 import { OrdersList, type OrdersLoanRow } from "./orders-list";
+
+/** Same as home/payment — always show loans the admin just created or updated. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata = {
   title: "Loan list · Smart Kredit",
@@ -36,44 +43,8 @@ function tsToMillis(v: unknown): number {
   return 0;
 }
 
-function normalizeLoanStatus(status: unknown): "settled" | "active" | "pending" {
-  const normalized = String(status ?? "").trim().toLowerCase();
-  if (normalized === "settled") return "settled";
-  if (normalized === "active") return "active";
-  return "pending";
-}
-
 /** Same as order detail page — unpaid total shown on Repayment / payment links. */
 const ORDER_INTEREST_FEE_RUPEES = 45;
-
-/**
- * Resolves KS-7500 / SL-6500 when `default_product_key` is missing on older loan docs.
- */
-function resolveHomeProductKeyForLoan(row: {
-  product_name?: string;
-  amount_rupees?: unknown;
-  default_product_key?: string;
-}): HomeProductId | null {
-  const k = String(row.default_product_key ?? "");
-  if (k && isHomeProductId(k)) {
-    return k;
-  }
-
-  const amount = Math.round(Number(row.amount_rupees ?? 0));
-  const name = String(row.product_name ?? "").trim();
-
-  for (const p of Object.values(HOME_PRODUCTS)) {
-    if (p.productName === name && p.loanAmountRupees === amount) {
-      return p.id;
-    }
-  }
-  for (const p of Object.values(HOME_PRODUCTS)) {
-    if (p.loanAmountRupees === amount) {
-      return p.id;
-    }
-  }
-  return null;
-}
 
 export default async function OrdersPage() {
   let loans: OrdersLoanRow[] = [];
@@ -104,11 +75,7 @@ export default async function OrdersPage() {
         const status = normalizeLoanStatus(row.status);
         const statusVariant = status;
         const label =
-          status === "settled"
-            ? "Settled"
-            : status === "active"
-              ? "Waiting for repayment"
-              : "Pending";
+          status === "settled" ? "Settled" : "Waiting for repayment";
         const amountRupees = Number(row.amount_rupees ?? 0);
         const productKey = resolveHomeProductKeyForLoan(row);
         const payableTotal = amountRupees + ORDER_INTEREST_FEE_RUPEES;

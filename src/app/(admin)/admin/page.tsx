@@ -1,12 +1,13 @@
 import { isAdminForSession } from "@/lib/admin-auth";
 import { getMongoDb } from "@/lib/mongodb/client";
-import type { HomeProductId } from "@/lib/home-products";
 import type {
   AppSettingHomeProductsDoc,
   AppSettingPaymentUpiDoc,
+  HomeProductEnabledMap,
   ProfileDoc,
 } from "@/lib/mongodb/types";
 import { getSession } from "@/lib/session";
+import { resolveGlobalHomeProductEnabledMapFromDoc } from "@/lib/session-profile";
 import { redirect } from "next/navigation";
 import {
   AdminDashboard,
@@ -78,7 +79,7 @@ export default async function AdminPage({
   let users: AdminUserRow[] = [];
   let totalCount = 0;
   let stats = { usersCount: 0, avail: 0, settled: 0 };
-  let globalHomeProductsEnabled = true;
+  let globalHomeProductEnabled: HomeProductEnabledMap | null = null;
   let paymentReceiveUpi: string | null = null;
 
   try {
@@ -86,7 +87,8 @@ export default async function AdminPage({
     const globalSetting = await db
       .collection<AppSettingHomeProductsDoc>("app_settings")
       .findOne({ _id: "home_products" });
-    globalHomeProductsEnabled = globalSetting?.globally_enabled !== false;
+    globalHomeProductEnabled =
+      resolveGlobalHomeProductEnabledMapFromDoc(globalSetting);
     const paymentSetting = await db
       .collection<AppSettingPaymentUpiDoc>("app_settings")
       .findOne({ _id: "payment_upi" });
@@ -157,7 +159,7 @@ export default async function AdminPage({
       });
 
       const hpe = row.home_product_enabled as
-        | Partial<Record<HomeProductId, boolean>>
+        | HomeProductEnabledMap
         | null
         | undefined;
 
@@ -194,7 +196,7 @@ export default async function AdminPage({
       pageSize={ADMIN_PAGE_SIZE}
       totalCount={totalCount}
       stats={stats}
-      globalHomeProductsEnabled={globalHomeProductsEnabled}
+      globalHomeProductEnabled={globalHomeProductEnabled}
       paymentReceiveUpi={paymentReceiveUpi}
     />
   );

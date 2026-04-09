@@ -64,6 +64,8 @@ export async function createLoan(input: {
     return { error: msg };
   }
   revalidatePath("/admin");
+  revalidatePath("/orders");
+  revalidatePath("/home");
   return { ok: true as const };
 }
 
@@ -108,6 +110,8 @@ export async function updateLoan(input: {
     return { error: msg };
   }
   revalidatePath("/admin");
+  revalidatePath("/orders");
+  revalidatePath("/home");
   return { ok: true as const };
 }
 
@@ -140,6 +144,7 @@ export async function deleteLoan(id: string) {
   }
   revalidatePath("/admin");
   revalidatePath("/orders");
+  revalidatePath("/home");
   return { ok: true as const };
 }
 
@@ -414,21 +419,28 @@ export async function updateHomeProductEnabled(input: {
   return { ok: true as const };
 }
 
-export async function updateGlobalHomeProductsEnabled(input: {
+export async function updateGlobalHomeProductEnabled(input: {
+  productId: HomeProductId;
   enabled: boolean;
 }) {
   const { db, error: authError } = await requireAdminDb();
   if (!db) return { error: authError ?? "Database not available." };
 
+  if (!HOME_PRODUCT_IDS.includes(input.productId)) {
+    return { error: "Invalid product." };
+  }
+
   try {
+    const set: Record<string, unknown> = {
+      updated_at: new Date(),
+      [`global_product_enabled.${input.productId}`]: input.enabled,
+    };
+    if (input.enabled) {
+      set.globally_enabled = true;
+    }
     await db.collection<AppSettingHomeProductsDoc>("app_settings").updateOne(
       { _id: "home_products" },
-      {
-        $set: {
-          globally_enabled: input.enabled,
-          updated_at: new Date(),
-        },
-      },
+      { $set: set },
       { upsert: true },
     );
   } catch (e) {

@@ -1,3 +1,4 @@
+import { contactMailtoHref, DEFAULT_CONTACT_EMAIL } from "@/lib/contact";
 import Link from "next/link";
 
 export function LegalSection({
@@ -58,8 +59,14 @@ export function LegalPageShell({
 
         <footer className="mt-12 border-t border-zinc-200 pt-8 text-sm text-zinc-600">
           <p>
-            Questions? Use <strong>Contact Us</strong> in the app or call our
-            customer care number shown on the Platform.
+            Questions? Use <strong>Contact Us</strong> in the app or email{" "}
+            <a
+              href={contactMailtoHref()}
+              className="font-semibold text-brand-indigo underline-offset-2 hover:underline"
+            >
+              {DEFAULT_CONTACT_EMAIL}
+            </a>
+            .
           </p>
         </footer>
       </div>

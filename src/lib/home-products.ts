@@ -28,10 +28,18 @@ export function isHomeProductId(id: string): id is HomeProductId {
 /** All home recommendation product ids (Kredit Smart, Smart Loan). */
 export const HOME_PRODUCT_IDS = Object.keys(HOME_PRODUCTS) as HomeProductId[];
 
-/** Default: visible. Only explicit `false` hides a product. */
-export function isHomeProductEnabledForUser(
+/** Default: visible. Only explicit `false` hides a product (global or per-user map). */
+export function isHomeProductSwitchOn(
   map: Partial<Record<HomeProductId, boolean>> | null | undefined,
   productId: HomeProductId,
 ): boolean {
   return map?.[productId] !== false;
+}
+
+/** Same as {@link isHomeProductSwitchOn} (per-user profile map). */
+export function isHomeProductEnabledForUser(
+  map: Partial<Record<HomeProductId, boolean>> | null | undefined,
+  productId: HomeProductId,
+): boolean {
+  return isHomeProductSwitchOn(map, productId);
 }
