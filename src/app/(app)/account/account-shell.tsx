@@ -1,5 +1,5 @@
 import { AccountPromoIllustration } from "@/components/account/AccountPromoIllustration";
-import { formatAccountId } from "@/lib/mask-account-id";
+import { DEFAULT_CONTACT_TEL } from "@/lib/contact";
 import {
   ChevronRight,
   FileText,
@@ -21,7 +21,7 @@ type AccountShellProps = {
 export function AccountShell({
   accountLabel,
   signOut,
-  contactTel = "+911800000000",
+  contactTel = DEFAULT_CONTACT_TEL,
   showAdminLink = false,
 }: AccountShellProps) {
   return (

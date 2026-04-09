@@ -372,6 +372,9 @@ export async function updateProfile(input: {
     return { error: msg };
   }
   revalidatePath("/admin");
+  if ("upiId" in input) {
+    revalidatePath("/payment");
+  }
   return { ok: true as const };
 }
 

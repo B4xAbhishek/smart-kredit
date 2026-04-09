@@ -315,7 +315,8 @@ export function AdminDashboard({
               Repayment UPI (global)
             </p>
             <p className="mt-1 text-xs text-brand-plum/60">
-              This UPI ID is shown on the payment page for all users.
+              Fallback on the payment page when a user has no UPI ID set in the
+              table below.
             </p>
             <form
               className="mt-3 flex flex-wrap items-center gap-2"

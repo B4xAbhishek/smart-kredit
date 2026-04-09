@@ -21,7 +21,7 @@ function formatTime(total: number) {
 export function PaymentCheckout({
   paymentReceiveUpi,
 }: {
-  /** Merchant UPI from admin (`app_settings.payment_upi`). */
+  /** Per-user UPI from profile when set, else global admin UPI (`app_settings.payment_upi`). */
   paymentReceiveUpi: string | null;
 }) {
   const router = useRouter();

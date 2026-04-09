@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
-import { getPaymentReceiveUpi } from "@/lib/session-profile";
+import { getRepaymentUpiForSession } from "@/lib/session-profile";
+import { getSession } from "@/lib/session";
 
 import { PaymentCheckout } from "./payment-checkout";
 
@@ -26,7 +27,8 @@ function PaymentFallback() {
 }
 
 export default async function PaymentPage() {
-  const paymentReceiveUpi = await getPaymentReceiveUpi();
+  const session = await getSession();
+  const paymentReceiveUpi = await getRepaymentUpiForSession(session);
 
   return (
     <Suspense fallback={<PaymentFallback />}>

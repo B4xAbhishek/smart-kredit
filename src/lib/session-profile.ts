@@ -1,5 +1,6 @@
 import type { HomeProductId } from "@/lib/home-products";
 import { getMongoDb } from "@/lib/mongodb/client";
+import { findProfileUidByPhone } from "@/lib/mongodb/profile-phone-lookup";
 import type {
   AppSettingHomeProductsDoc,
   AppSettingPaymentUpiDoc,
@@ -55,7 +56,7 @@ export async function areHomeProductsGloballyEnabled(): Promise<boolean> {
   }
 }
 
-/** UPI VPA for manual repayment (admin-configured; empty if unset). */
+/** Global merchant UPI from `app_settings.payment_upi` (admin). */
 export async function getPaymentReceiveUpi(): Promise<string | null> {
   try {
     const db = await getMongoDb();
@@ -70,4 +71,60 @@ export async function getPaymentReceiveUpi(): Promise<string | null> {
     console.error("[payment-upi] failed to load repayment UPI", error);
     return null;
   }
+}
+
+async function fetchProfileUpiById(uid: string): Promise<string | null> {
+  try {
+    const db = await getMongoDb();
+    const doc = await db.collection<ProfileDoc>("profiles").findOne(
+      { _id: uid },
+      { projection: { upi_id: 1 } },
+    );
+    return doc?.upi_id?.trim() || null;
+  } catch (error) {
+    console.error("[payment-upi] failed to load profile UPI", error);
+    return null;
+  }
+}
+
+/**
+ * UPI for manual repayment: per-user `profiles.upi_id`, then global
+ * {@link getPaymentReceiveUpi}. Resolves by **phone first** (same row the admin
+ * table shows), then session UID, then email — so the value is not missed when
+ * the cookie UID and canonical phone profile differ.
+ */
+export async function getRepaymentUpiForSession(
+  session: SessionPayload | null,
+): Promise<string | null> {
+  if (!session) return getPaymentReceiveUpi();
+
+  if (session.phone) {
+    const phoneUid = await findProfileUidByPhone(session.phone);
+    if (phoneUid) {
+      const v = await fetchProfileUpiById(phoneUid);
+      if (v) return v;
+    }
+  }
+
+  const uid = await resolveProfileUserId(session);
+  if (uid) {
+    const v = await fetchProfileUpiById(uid);
+    if (v) return v;
+  }
+
+  if (session.email) {
+    try {
+      const db = await getMongoDb();
+      const doc = await db.collection<ProfileDoc>("profiles").findOne(
+        { email: session.email.toLowerCase().trim() },
+        { projection: { upi_id: 1 } },
+      );
+      const v = doc?.upi_id?.trim();
+      if (v) return v;
+    } catch (error) {
+      console.error("[payment-upi] failed to load profile UPI by email", error);
+    }
+  }
+
+  return getPaymentReceiveUpi();
 }

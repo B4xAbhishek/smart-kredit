@@ -12,6 +12,7 @@ import {
   getHomeProductEnabledMapForSession,
   resolveProfileUserId,
 } from "@/lib/session-profile";
+import { DEFAULT_CONTACT_TEL } from "@/lib/contact";
 import { Bell, CreditCard, Zap } from "lucide-react";
 import Link from "next/link";
 
@@ -73,13 +74,13 @@ export default async function HomePage() {
             className="min-w-0 flex-1"
             boxClassName="w-auto max-w-none"
           />
-          <button
-            type="button"
+          <Link
+            href={`tel:${DEFAULT_CONTACT_TEL}`}
             className="shrink-0 self-center cursor-pointer rounded-full p-2.5 text-brand-plum ring-1 ring-brand-plum/10 transition hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
-            aria-label="Notifications"
+            aria-label="Contact us"
           >
             <Bell className="size-5" strokeWidth={1.75} />
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -117,7 +118,7 @@ export default async function HomePage() {
             </p>
           </div>
           <Link
-            href="/payment"
+            href="/orders"
             className="inline-flex cursor-pointer items-center justify-center rounded-full bg-brand-indigo px-6 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             Repay
