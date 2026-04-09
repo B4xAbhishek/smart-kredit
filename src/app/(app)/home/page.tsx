@@ -137,21 +137,26 @@ export default async function HomePage() {
               key={row.id}
               className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(60,21,91,0.08)] ring-1 ring-zinc-100"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span
-                    className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-400 via-purple-500 to-indigo-600 shadow-inner"
-                    aria-hidden
-                  >
-                    <Zap className="size-5 text-white" fill="currentColor" />
-                  </span>
-                  <span className="truncate font-[family-name:var(--font-montserrat)] text-base font-bold text-zinc-900">
-                    {row.productName}
-                  </span>
-                </div>
-                <span className="shrink-0 font-[family-name:var(--font-montserrat)] text-sm font-semibold italic text-amber-600">
-                  Waiting Repayment
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <span
+                  className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-400 via-purple-500 to-indigo-600 shadow-inner sm:size-11"
+                  aria-hidden
+                >
+                  <Zap
+                    className="size-[1.125rem] text-white sm:size-5"
+                    fill="currentColor"
+                  />
                 </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                    <p className="font-[family-name:var(--font-montserrat)] text-sm font-bold leading-snug text-zinc-900 sm:text-base">
+                      {row.productName}
+                    </p>
+                    <p className="shrink-0 font-[family-name:var(--font-montserrat)] text-[11px] font-semibold italic leading-tight text-amber-600 sm:text-right sm:text-sm">
+                      Waiting Repayment
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-2 text-xs text-zinc-500">
@@ -159,16 +164,16 @@ export default async function HomePage() {
                 <span className="truncate font-mono tabular-nums">{row.id}</span>
               </div>
 
-              <div className="mt-4 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs text-zinc-500">Amount of money</p>
-                  <p className="font-[family-name:var(--font-montserrat)] text-xl font-bold tabular-nums text-zinc-900">
+              <div className="mt-4 flex items-end justify-between gap-2 sm:gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] text-zinc-500 sm:text-xs">Amount of money</p>
+                  <p className="font-[family-name:var(--font-montserrat)] text-lg font-bold tabular-nums text-zinc-900 sm:text-xl">
                     ₹ {formatInr(row.loanAmountRupees)}
                   </p>
                 </div>
                 <Link
                   href={`/order/${row.id}`}
-                  className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+                  className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo sm:px-5 sm:text-sm"
                 >
                   Detail
                 </Link>
