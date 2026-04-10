@@ -56,9 +56,8 @@ export function resolveHomeProductKeyForLoan(row: {
 }
 
 /**
- * Orders list: custom loans always show. Catalog home products show while
- * ongoing (repayment); settled rows are omitted when that product is hidden
- * (global/per-user), matching Home visibility without hiding active debt.
+ * Orders list: custom loans always show. Catalog home products are shown only
+ * when visible by current global/per-user switches.
  */
 export function shouldIncludeLoanOnOrdersList(
   row: {
@@ -72,8 +71,7 @@ export function shouldIncludeLoanOnOrdersList(
 ): boolean {
   const productKey = resolveHomeProductKeyForLoan(row);
   if (!productKey) return true;
-  if (isHomeProductVisibleForUser(globalMap, userMap, productKey)) return true;
-  return normalizeLoanStatus(row.status) !== "settled";
+  return isHomeProductVisibleForUser(globalMap, userMap, productKey);
 }
 
 /**
