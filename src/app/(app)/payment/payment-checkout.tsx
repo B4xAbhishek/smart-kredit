@@ -12,10 +12,64 @@ import utrHowToFind from "@/assets/utr-how-to-find.png";
 
 const INITIAL_SECONDS = 5 * 60 + 10; // 05:10
 
+/** Play Store applicationId for Paytm (Android intent target). */
+const PAYTM_ANDROID_PACKAGE = "net.one97.paytm";
+/** Play Store applicationId for PhonePe (Android intent target). */
+const PHONEPE_ANDROID_PACKAGE = "com.phonepe.app";
+
+const UPI_PAYEE_NAME = "Smart Kredit";
+
 function formatTime(total: number) {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/** UPI `am` value: positive rupees as a string with two decimals, or undefined if invalid. */
+function parsePayableAmountAm(payableAmountRupees: string | null): string | undefined {
+  if (payableAmountRupees == null) return undefined;
+  const normalized = payableAmountRupees.replace(/,/g, "").trim();
+  if (normalized === "") return undefined;
+  const n = Number.parseFloat(normalized);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return n.toFixed(2);
+}
+
+function buildUpiPayQueryString(
+  pa: string,
+  opts?: { am?: string },
+): string {
+  const params = new URLSearchParams({
+    pa,
+    pn: UPI_PAYEE_NAME,
+    cu: "INR",
+  });
+  if (opts?.am) params.set("am", opts.am);
+  return params.toString();
+}
+
+function isAndroidUserAgent(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
+/**
+ * Opens a UPI pay screen; on Android, tries the given app package via intent, else generic `upi://`.
+ */
+function navigateToUpiPay(
+  pa: string,
+  androidPackage: string,
+  opts?: { am?: string },
+): void {
+  if (typeof window === "undefined") return;
+  const q = buildUpiPayQueryString(pa, opts);
+  const upiHref = `upi://pay?${q}`;
+  if (isAndroidUserAgent()) {
+    const fallback = encodeURIComponent(window.location.href);
+    window.location.href = `intent://pay?${q}#Intent;scheme=upi;package=${androidPackage};S.browser_fallback_url=${fallback};end`;
+    return;
+  }
+  window.location.href = upiHref;
 }
 
 export function PaymentCheckout({
@@ -30,8 +84,10 @@ export function PaymentCheckout({
   const upiTrimmed = paymentReceiveUpi?.trim() ?? "";
   const hasUpi = upiTrimmed.length > 0;
   const upiDisplay = hasUpi ? upiTrimmed : "—";
+  const amountAm = parsePayableAmountAm(payableAmountRupees);
+  const upiPayOpts = amountAm ? { am: amountAm } : undefined;
   const qrPayPayload = hasUpi
-    ? `upi://pay?pa=${encodeURIComponent(upiTrimmed)}&cu=INR&pn=${encodeURIComponent("Smart Kredit")}`
+    ? `upi://pay?${buildUpiPayQueryString(upiTrimmed, upiPayOpts)}`
     : "";
   const qrSrc = hasUpi
     ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(qrPayPayload)}`
@@ -90,6 +146,24 @@ export function PaymentCheckout({
     setRefError(null);
     setSubmitSuccessOpen(true);
   }, [refDigits.length]);
+
+  const onOpenPaytm = useCallback(() => {
+    if (!hasUpi) return;
+    navigateToUpiPay(
+      upiTrimmed,
+      PAYTM_ANDROID_PACKAGE,
+      amountAm ? { am: amountAm } : undefined,
+    );
+  }, [hasUpi, upiTrimmed, amountAm]);
+
+  const onOpenPhonePe = useCallback(() => {
+    if (!hasUpi) return;
+    navigateToUpiPay(
+      upiTrimmed,
+      PHONEPE_ANDROID_PACKAGE,
+      amountAm ? { am: amountAm } : undefined,
+    );
+  }, [hasUpi, upiTrimmed, amountAm]);
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-gradient-to-b from-[#ebe4fb] via-[#ede8f7] to-[#e2daf3] pb-6">
@@ -179,7 +253,10 @@ export function PaymentCheckout({
           <div className="space-y-3">
             <button
               type="button"
-              className="flex w-full cursor-pointer items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-brand-indigo/35 hover:bg-brand-lavender/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+              onClick={onOpenPaytm}
+              disabled={!hasUpi}
+              aria-label="Open Paytm to pay with UPI"
+              className="flex w-full cursor-pointer items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-brand-indigo/35 hover:bg-brand-lavender/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span
                 className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-zinc-100"
@@ -201,7 +278,10 @@ export function PaymentCheckout({
 
             <button
               type="button"
-              className="flex w-full cursor-pointer items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-brand-indigo/35 hover:bg-brand-lavender/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+              onClick={onOpenPhonePe}
+              disabled={!hasUpi}
+              aria-label="Open PhonePe to pay with UPI"
+              className="flex w-full cursor-pointer items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-brand-indigo/35 hover:bg-brand-lavender/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span
                 className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-zinc-100"
