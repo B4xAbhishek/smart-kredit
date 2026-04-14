@@ -1,11 +1,22 @@
 "use client";
 
 import { exchangeFirebaseIdTokenForSession } from "@/lib/auth/exchange-firebase-session";
+import {
+  GOOGLE_REDIRECT_SESSION_NEXT_KEY,
+  GOOGLE_REDIRECT_SESSION_PHONE_KEY,
+  isAppWebViewClient,
+} from "@/lib/auth/app-webview";
 import { getFirebaseAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
-import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  getRedirectResult,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+} from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 function GoogleIcon() {
   return (
@@ -41,8 +52,73 @@ export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Pr
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const useRedirectFlow = isAppWebViewClient();
 
   const firebaseReady = isFirebaseClientConfigured();
+
+  useEffect(() => {
+    if (!firebaseReady || !useRedirectFlow || typeof window === "undefined") {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const auth = getFirebaseAuth();
+        const result = await getRedirectResult(auth);
+        if (cancelled || !result?.user) return;
+
+        const storedPhone = sessionStorage.getItem(
+          GOOGLE_REDIRECT_SESSION_PHONE_KEY,
+        );
+        const storedNext = sessionStorage.getItem(GOOGLE_REDIRECT_SESSION_NEXT_KEY);
+        sessionStorage.removeItem(GOOGLE_REDIRECT_SESSION_PHONE_KEY);
+        sessionStorage.removeItem(GOOGLE_REDIRECT_SESSION_NEXT_KEY);
+
+        if (!storedPhone?.trim()) {
+          setError(
+            "Sign-in returned but phone context was missing. Enter your number and try again.",
+          );
+          await signOut(auth).catch(() => {});
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        const idToken = await result.user.getIdToken();
+        const session = await exchangeFirebaseIdTokenForSession(
+          idToken,
+          storedPhone.trim(),
+        );
+        if (!session.ok) {
+          throw new Error(session.message);
+        }
+        await signOut(auth);
+        const dest =
+          storedNext && storedNext !== "/home" && storedNext !== ""
+            ? storedNext
+            : session.redirectTo;
+        router.replace(dest);
+        router.refresh();
+      } catch (e) {
+        if (cancelled) return;
+        const message =
+          e instanceof Error ? e.message : "Google sign-in failed.";
+        if (
+          message.includes("auth/popup-closed-by-user") ||
+          message.includes("cancelled")
+        ) {
+          setError(null);
+        } else {
+          setError(message);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [firebaseReady, router, useRedirectFlow]);
 
   const onFirebaseClick = useCallback(async () => {
     if (!phoneValid) {
@@ -54,6 +130,19 @@ export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Pr
     try {
       const auth = getFirebaseAuth();
       const provider = new GoogleAuthProvider();
+
+      if (useRedirectFlow) {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(GOOGLE_REDIRECT_SESSION_PHONE_KEY, phoneE164);
+          sessionStorage.setItem(
+            GOOGLE_REDIRECT_SESSION_NEXT_KEY,
+            explicitNext ?? "",
+          );
+        }
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
       const session = await exchangeFirebaseIdTokenForSession(idToken, phoneE164);
@@ -81,7 +170,7 @@ export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Pr
     } finally {
       setLoading(false);
     }
-  }, [router, explicitNext, phoneE164, phoneValid]);
+  }, [router, explicitNext, phoneE164, phoneValid, useRedirectFlow]);
 
   if (!firebaseReady) {
     return (
@@ -102,7 +191,7 @@ export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Pr
         type="button"
         onClick={onFirebaseClick}
         disabled={loading}
-        className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-brand-plum/15 bg-white py-3.5 text-sm font-medium text-brand-plum shadow-sm transition hover:bg-brand-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-brand-plum/15 bg-white py-3.5 text-sm font-medium text-brand-plum shadow-sm transition hover:bg-brand-lavender/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60 [touch-action:manipulation]"
       >
         {loading ? (
           <Loader2 className="size-4 animate-spin text-brand-indigo" aria-hidden />

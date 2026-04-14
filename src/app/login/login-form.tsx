@@ -1,5 +1,6 @@
 "use client";
 
+import { isAppWebViewClient } from "@/lib/auth/app-webview";
 import { exchangeFirebaseIdTokenForSession } from "@/lib/auth/exchange-firebase-session";
 import { FirebaseGoogleButton } from "@/components/auth/FirebaseGoogleButton";
 import { getFirebaseAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
@@ -218,7 +219,7 @@ export function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="flex flex-col gap-5"
+      className="relative flex flex-col gap-5 [touch-action:manipulation]"
       noValidate
     >
       <p className="text-sm text-brand-plum/75">
@@ -273,7 +274,7 @@ export function LoginForm() {
             type="button"
             onClick={sendOtp}
             disabled={sendingOtp || verifying}
-            className="shrink-0 cursor-pointer rounded-full bg-brand-indigo px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60"
+            className="shrink-0 cursor-pointer rounded-full bg-brand-indigo px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60 [touch-action:manipulation]"
           >
             {sendingOtp ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -286,7 +287,16 @@ export function LoginForm() {
         </div>
       </label>
 
-      <div id={RECAPTCHA_CONTAINER_ID} aria-hidden="true" className="sr-only" />
+      {/* WebViews often break `sr-only` (clip) for invisible reCAPTCHA; keep a tiny live box in-app. */}
+      <div
+        id={RECAPTCHA_CONTAINER_ID}
+        aria-hidden="true"
+        className={
+          isAppWebViewClient()
+            ? "pointer-events-auto absolute left-0 top-0 z-[200] size-px overflow-visible opacity-0"
+            : "sr-only"
+        }
+      />
 
       {otpSent && !error ? (
         <p className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700" role="status">
@@ -306,7 +316,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={sendingOtp || verifying}
-        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-brand-indigo py-4 text-base font-semibold text-white shadow-md transition hover:bg-brand-indigo/92 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-brand-indigo py-4 text-base font-semibold text-white shadow-md transition hover:bg-brand-indigo/92 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60 [touch-action:manipulation]"
       >
         {verifying ? (
           <>

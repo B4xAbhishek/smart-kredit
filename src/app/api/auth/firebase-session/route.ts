@@ -66,10 +66,10 @@ export async function POST(request: NextRequest) {
       await upsertPhoneProfile(canonicalUid, phone);
       await releasePhoneFromOtherProfiles(phone, canonicalUid);
       const redirectTo = await getPostLoginRedirectPath(canonicalUid);
-      await createSession(phone, canonicalUid, {
+      const sessionToken = await createSession(phone, canonicalUid, {
         repeatCustomer: redirectTo === "/orders",
       });
-      return NextResponse.json({ ok: true, redirectTo });
+      return NextResponse.json({ ok: true, redirectTo, sessionToken });
     }
 
     const email = decoded.email;
@@ -90,11 +90,11 @@ export async function POST(request: NextRequest) {
     );
     await releasePhoneFromOtherProfiles(assertedPhoneE164, canonicalUid);
     const redirectTo = await getPostLoginRedirectPath(canonicalUid);
-    await createEmailSession(email, canonicalUid, {
+    const sessionToken = await createEmailSession(email, canonicalUid, {
       repeatCustomer: redirectTo === "/orders",
     });
 
-    return NextResponse.json({ ok: true, redirectTo });
+    return NextResponse.json({ ok: true, redirectTo, sessionToken });
   } catch (e) {
     console.error("[firebase-session]", e);
     return NextResponse.json({ error: "verify_failed" }, { status: 401 });

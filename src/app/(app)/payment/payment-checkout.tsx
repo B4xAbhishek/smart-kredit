@@ -12,11 +12,6 @@ import utrHowToFind from "@/assets/utr-how-to-find.png";
 
 const INITIAL_SECONDS = 5 * 60 + 10; // 05:10
 
-/** Play Store applicationId for Paytm (Android intent target). */
-const PAYTM_ANDROID_PACKAGE = "net.one97.paytm";
-/** Play Store applicationId for PhonePe (Android intent target). */
-const PHONEPE_ANDROID_PACKAGE = "com.phonepe.app";
-
 const UPI_PAYEE_NAME = "Smart Kredit";
 
 function formatTime(total: number) {
@@ -35,41 +30,50 @@ function parsePayableAmountAm(payableAmountRupees: string | null): string | unde
   return n.toFixed(2);
 }
 
+/**
+ * UPI query string for `upi://pay`, `phonepe://pay`, and `paytmmp://pay`.
+ * Uses percent-encoding (not `+` for spaces) — some apps reject `URLSearchParams` output.
+ */
 function buildUpiPayQueryString(
   pa: string,
   opts?: { am?: string },
 ): string {
-  const params = new URLSearchParams({
-    pa,
-    pn: UPI_PAYEE_NAME,
-    cu: "INR",
-  });
-  if (opts?.am) params.set("am", opts.am);
-  return params.toString();
+  const parts = [
+    `pa=${encodeURIComponent(pa)}`,
+    `pn=${encodeURIComponent(UPI_PAYEE_NAME)}`,
+    `tn=${encodeURIComponent("Repayment")}`,
+    `cu=INR`,
+  ];
+  if (opts?.am) parts.push(`am=${encodeURIComponent(opts.am)}`);
+  return parts.join("&");
 }
 
-function isAndroidUserAgent(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /Android/i.test(navigator.userAgent);
-}
+type WalletApp = "paytm" | "phonepe";
 
 /**
- * Opens a UPI pay screen; on Android, tries the given app package via intent, else generic `upi://`.
+ * Opens Paytm or PhonePe via each app’s documented deep link. Falls back to generic `upi://pay`
+ * on non-mobile or if the environment blocks custom schemes (user can pick an app).
  */
-function navigateToUpiPay(
+function navigateToWalletUpi(
   pa: string,
-  androidPackage: string,
+  wallet: WalletApp,
   opts?: { am?: string },
 ): void {
   if (typeof window === "undefined") return;
   const q = buildUpiPayQueryString(pa, opts);
-  const upiHref = `upi://pay?${q}`;
-  if (isAndroidUserAgent()) {
-    const fallback = encodeURIComponent(window.location.href);
-    window.location.href = `intent://pay?${q}#Intent;scheme=upi;package=${androidPackage};S.browser_fallback_url=${fallback};end`;
+  const isMobile =
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // App-specific schemes work more reliably than Chrome intent + `package=` for these wallets.
+    const href =
+      wallet === "phonepe" ? `phonepe://pay?${q}` : `paytmmp://pay?${q}`;
+    window.location.href = href;
     return;
   }
-  window.location.href = upiHref;
+
+  window.location.href = `upi://pay?${q}`;
 }
 
 export function PaymentCheckout({
@@ -149,18 +153,18 @@ export function PaymentCheckout({
 
   const onOpenPaytm = useCallback(() => {
     if (!hasUpi) return;
-    navigateToUpiPay(
+    navigateToWalletUpi(
       upiTrimmed,
-      PAYTM_ANDROID_PACKAGE,
+      "paytm",
       amountAm ? { am: amountAm } : undefined,
     );
   }, [hasUpi, upiTrimmed, amountAm]);
 
   const onOpenPhonePe = useCallback(() => {
     if (!hasUpi) return;
-    navigateToUpiPay(
+    navigateToWalletUpi(
       upiTrimmed,
-      PHONEPE_ANDROID_PACKAGE,
+      "phonepe",
       amountAm ? { am: amountAm } : undefined,
     );
   }, [hasUpi, upiTrimmed, amountAm]);

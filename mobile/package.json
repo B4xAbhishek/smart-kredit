@@ -1,0 +1,41 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "start:tunnel": "expo start --tunnel",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "prebuild": "expo prebuild --platform android --clean",
+    "apk:debug": "cd android && ./gradlew assembleDebug",
+    "apk:release": "cd android && ./gradlew assembleRelease",
+    "aab:release": "cd android && ./gradlew bundleRelease",
+    "android:release": "cd android && ./gradlew assembleRelease bundleRelease",
+    "sha:debug": "keytool -list -v -alias androiddebugkey -keystore android/app/debug.keystore -storepass android -keypass android | grep -E 'SHA1|SHA-256'",
+    "sha:release": "keytool -list -v -alias smartkredit -keystore android/app/smartkredit-release.keystore | grep -E 'SHA1|SHA-256'"
+  },
+  "dependencies": {
+    "@react-native-community/netinfo": "11.4.1",
+    "@react-native-firebase/app": "^21.6.1",
+    "@react-native-firebase/auth": "^21.6.1",
+    "@react-native-google-signin/google-signin": "^13.1.0",
+    "expo": "~54.0.33",
+    "expo-build-properties": "~1.0.9",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-linking": "~8.0.11",
+    "expo-splash-screen": "~31.0.13",
+    "expo-status-bar": "~3.0.9",
+    "expo-web-browser": "~15.0.9",
+    "lucide-react-native": "^0.544.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}

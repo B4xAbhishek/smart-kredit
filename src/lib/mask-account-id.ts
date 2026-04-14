@@ -22,3 +22,19 @@ export function formatAccountId(
   }
   return "Account —";
 }
+
+/**
+ * Prefer masked phone/email; if both missing (broken session) use profile display name.
+ */
+export function formatAccountHeader(
+  phone: string | null | undefined,
+  email: string | null | undefined,
+  displayName: string | null | undefined,
+): string {
+  const fromId = formatAccountId(phone, email);
+  if (fromId !== "Account —") return fromId;
+  if (displayName?.trim()) {
+    return `Account · ${displayName.trim()}`;
+  }
+  return "Account —";
+}

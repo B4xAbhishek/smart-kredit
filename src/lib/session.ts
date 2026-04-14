@@ -40,12 +40,12 @@ function verify(token: string): SessionPayload | null {
   }
 }
 
-/** OTP login: stores phone + Firebase Auth UID. */
+/** OTP login: stores phone + Firebase Auth UID. Returns signed cookie value (for native clients). */
 export async function createSession(
   phone: string,
   firebaseUid: string,
   opts?: { repeatCustomer?: boolean },
-) {
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const token = sign({
     phone,
@@ -62,14 +62,15 @@ export async function createSession(
     path: "/",
     maxAge: MAX_AGE,
   });
+  return token;
 }
 
-/** Google sign-in: email + Firebase Auth UID. */
+/** Google sign-in: email + Firebase Auth UID. Returns signed cookie value (for native clients). */
 export async function createEmailSession(
   email: string,
   firebaseUid: string,
   opts?: { repeatCustomer?: boolean },
-) {
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const token = sign({
     email,
@@ -86,6 +87,7 @@ export async function createEmailSession(
     path: "/",
     maxAge: MAX_AGE,
   });
+  return token;
 }
 
 /** Get current session from cookies (for server components / actions). */
@@ -106,15 +108,32 @@ export async function clearSession() {
 export async function refreshSessionRepeatCustomer(repeat: boolean) {
   const current = await getSession();
   if (!current?.userId) return;
-  const now = Math.floor(Date.now() / 1000);
-  const token = sign({
-    phone: current.phone,
-    email: current.email,
+
+  let phone = current.phone;
+  let email = current.email;
+  // Re-signing with `phone: undefined, email: undefined` omits both from JSON and
+  // strips them from the cookie forever — repair from Mongo when missing.
+  if (!phone && !email) {
+    const { getProfileIdentifiersForUid } = await import(
+      "@/lib/mongodb/profile-identifiers"
+    );
+    const ids = await getProfileIdentifiersForUid(current.userId);
+    if (ids.phone) phone = ids.phone;
+    if (ids.email) email = ids.email;
+  }
+
+  const payload: SessionPayload = {
     userId: current.userId,
-    ...(repeat ? { repeat_customer: true } : {}),
     iat: current.iat,
     exp: current.exp,
-  });
+  };
+  if (phone) payload.phone = phone;
+  if (email) payload.email = email;
+  if (repeat || current.repeat_customer) {
+    payload.repeat_customer = true;
+  }
+
+  const token = sign(payload);
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,

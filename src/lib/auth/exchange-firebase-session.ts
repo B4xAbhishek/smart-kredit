@@ -1,7 +1,11 @@
 /** Client: POST verified Firebase ID token → app session cookie. */
 
 export type FirebaseSessionExchangeResult =
-  | { ok: true; redirectTo: "/home" | "/orders" }
+  | {
+      ok: true;
+      redirectTo: "/home" | "/orders";
+      sessionToken?: string;
+    }
   | { ok: false; message: string };
 
 export async function exchangeFirebaseIdTokenForSession(
@@ -16,6 +20,8 @@ export async function exchangeFirebaseIdTokenForSession(
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
     redirectTo?: "/home" | "/orders";
+    /** Same value as `sk-session` cookie; used by the native app to sync WebView cookies. */
+    sessionToken?: string;
   };
   if (!res.ok) {
     return {
@@ -23,7 +29,11 @@ export async function exchangeFirebaseIdTokenForSession(
       message: mapFirebaseSessionError(data.error),
     };
   }
-  return { ok: true, redirectTo: data.redirectTo ?? "/home" };
+  return {
+    ok: true,
+    redirectTo: data.redirectTo ?? "/home",
+    sessionToken: data.sessionToken,
+  };
 }
 
 function mapFirebaseSessionError(code: string | undefined): string {
