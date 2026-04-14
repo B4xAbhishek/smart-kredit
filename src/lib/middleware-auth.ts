@@ -8,6 +8,7 @@ const PROTECTED = [
   "/orders",
   "/order",
   "/account",
+  "/accounts",
   "/payment",
   "/admin",
 ];
