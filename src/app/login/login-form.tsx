@@ -53,6 +53,12 @@ function mapFirebasePhoneError(code: string): string {
 
 const RECAPTCHA_CONTAINER_ID = "recaptcha-phone-login";
 
+function isAndroidWebView(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /Android/i.test(ua) && (/\bwv\b|; wv\)/i.test(ua) || /WebView/i.test(ua));
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -64,6 +70,7 @@ export function LoginForm() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hideAlternateLogin, setHideAlternateLogin] = useState(false);
 
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
@@ -93,6 +100,10 @@ export function LoginForm() {
       verifierRef.current = null;
       confirmationRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    setHideAlternateLogin(isAndroidWebView());
   }, []);
 
   const phoneE164 = useCallback(() => toE164(phoneDigits), [phoneDigits]);
@@ -318,17 +329,21 @@ export function LoginForm() {
         )}
       </button>
 
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-brand-plum/10" />
-        <span className="text-xs text-brand-plum/40">or</span>
-        <div className="h-px flex-1 bg-brand-plum/10" />
-      </div>
+      {!hideAlternateLogin ? (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-brand-plum/10" />
+            <span className="text-xs text-brand-plum/40">or</span>
+            <div className="h-px flex-1 bg-brand-plum/10" />
+          </div>
 
-      <FirebaseGoogleButton
-        explicitNext={explicitNext}
-        phoneE164={phoneE164()}
-        phoneValid={phoneValid}
-      />
+          <FirebaseGoogleButton
+            explicitNext={explicitNext}
+            phoneE164={phoneE164()}
+            phoneValid={phoneValid}
+          />
+        </>
+      ) : null}
 
       <p className="text-center text-xs leading-relaxed text-brand-plum/50">
         By continuing you agree to our{" "}
