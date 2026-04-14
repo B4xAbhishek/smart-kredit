@@ -1,4 +1,5 @@
 import { SESSION_COOKIE } from "@/lib/session-constants";
+import { DEV_OTP_SESSION_COOKIE } from "@/lib/dev-otp-bypass";
 import { verifySessionTokenEdge } from "@/lib/session-edge-verify";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -12,11 +13,23 @@ const PROTECTED = [
 ];
 
 export async function updateSession(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const isAuthEntryPath = path === "/" || path === "/login";
+
+  if (isAuthEntryPath) {
+    const response =
+      path === "/"
+        ? NextResponse.redirect(new URL("/login", request.url))
+        : NextResponse.next();
+    response.cookies.delete(SESSION_COOKIE);
+    response.cookies.delete(DEV_OTP_SESSION_COOKIE);
+    return response;
+  }
+
   const sessionToken = request.cookies.get(SESSION_COOKIE)?.value;
   const session = await verifySessionTokenEdge(sessionToken);
   const isAuthed = Boolean(session);
 
-  const path = request.nextUrl.pathname;
   const isProtected = PROTECTED.some(
     (p) => path === p || path.startsWith(`${p}/`),
   );
@@ -25,13 +38,6 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", path);
-    return NextResponse.redirect(url);
-  }
-
-  if (isAuthed && path === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = session?.repeat_customer ? "/orders" : "/home";
-    url.search = "";
     return NextResponse.redirect(url);
   }
 
