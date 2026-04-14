@@ -7,7 +7,9 @@ import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type { HomeProductId } from "@/lib/home-products";
 import { HOME_PRODUCT_IDS } from "@/lib/home-products";
+import { generateFallbackAccessCode } from "@/lib/fallback-access-code";
 import type {
+  AppSettingFallbackLoginCodeDoc,
   AppSettingHomeProductsDoc,
   AppSettingPaymentUpiDoc,
   ProfileDoc,
@@ -479,4 +481,31 @@ export async function updatePaymentReceiveUpi(input: { upiId: string | null }) {
   revalidatePath("/admin");
   revalidatePath("/payment");
   return { ok: true as const };
+}
+
+export async function generateEmergencyLoginCode() {
+  const { db, error: authError } = await requireAdminDb();
+  if (!db) return { error: authError ?? "Database not available." };
+
+  const code = generateFallbackAccessCode();
+  try {
+    await db
+      .collection<AppSettingFallbackLoginCodeDoc>("app_settings")
+      .updateOne(
+        { _id: "fallback_login_code" },
+        {
+          $set: {
+            code,
+            updated_at: new Date(),
+          },
+        },
+        { upsert: true },
+      );
+  } catch (e) {
+    const msg =
+      e instanceof Error ? e.message : "Failed to generate emergency login code.";
+    return { error: msg };
+  }
+  revalidatePath("/admin");
+  return { ok: true as const, code };
 }

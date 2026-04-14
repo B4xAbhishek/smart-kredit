@@ -1,5 +1,6 @@
 "use client";
 
+import { exchangeFallbackCodeForSession } from "@/lib/auth/exchange-fallback-code-session";
 import { exchangeFirebaseIdTokenForSession } from "@/lib/auth/exchange-firebase-session";
 import { FirebaseGoogleButton } from "@/components/auth/FirebaseGoogleButton";
 import { getFirebaseAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
@@ -69,6 +70,8 @@ export function LoginForm() {
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [adminCodeVerifying, setAdminCodeVerifying] = useState(false);
+  const [adminCode, setAdminCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [hideAlternateLogin, setHideAlternateLogin] = useState(false);
 
@@ -159,6 +162,10 @@ export function LoginForm() {
       setError("Enter a valid 10-digit mobile number.");
       return;
     }
+    if (adminCode.trim().length === 6) {
+      await onAdminCodeSubmit();
+      return;
+    }
     if (!otp.trim()) {
       setError("Enter the OTP sent to your phone.");
       return;
@@ -209,6 +216,37 @@ export function LoginForm() {
       }
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const onAdminCodeSubmit = async () => {
+    setError(null);
+    const phone = phoneE164();
+    if (phone.length < 13) {
+      setError("Enter a valid 10-digit mobile number.");
+      return;
+    }
+    const enteredCode = adminCode.trim();
+    if (enteredCode.length !== 6) {
+      setError("Enter the 6-digit admin login code.");
+      return;
+    }
+
+    setAdminCodeVerifying(true);
+    try {
+      const session = await exchangeFallbackCodeForSession(phone, enteredCode);
+      if (!session.ok) {
+        setError(session.message);
+        return;
+      }
+      const dest =
+        explicitNext && explicitNext !== "/home"
+          ? explicitNext
+          : session.redirectTo;
+      router.replace(dest);
+      router.refresh();
+    } finally {
+      setAdminCodeVerifying(false);
     }
   };
 
@@ -297,6 +335,47 @@ export function LoginForm() {
         </div>
       </label>
 
+      <label className="block">
+        <span className="sr-only">Admin login code</span>
+        <div className="flex items-center gap-2 rounded-full bg-brand-lavender/90 px-4 py-3.5 ring-1 ring-brand-plum/10 transition-[box-shadow] focus-within:ring-2 focus-within:ring-brand-indigo/40">
+          <Shield
+            className="size-5 shrink-0 text-brand-indigo"
+            strokeWidth={1.75}
+            aria-hidden
+          />
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="Admin code (6 digits)"
+            value={adminCode}
+            onChange={(e) => setAdminCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void onAdminCodeSubmit();
+              }
+            }}
+            className="min-w-0 flex-1 bg-transparent text-base text-brand-plum placeholder:text-brand-plum/35 outline-none"
+          />
+          <button
+            type="button"
+            onClick={onAdminCodeSubmit}
+            disabled={sendingOtp || verifying || adminCodeVerifying}
+            className="shrink-0 cursor-pointer rounded-full border border-brand-indigo/20 bg-white px-4 py-2 text-sm font-medium text-brand-indigo shadow-sm transition hover:bg-brand-indigo/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {adminCodeVerifying ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              "Login with code"
+            )}
+          </button>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-brand-plum/50">
+          If OTP is not arriving, ask admin for the latest rotating 6-digit code.
+        </p>
+      </label>
+
       <div id={RECAPTCHA_CONTAINER_ID} aria-hidden="true" className="sr-only" />
 
       {otpSent && !error ? (
@@ -316,7 +395,7 @@ export function LoginForm() {
 
       <button
         type="submit"
-        disabled={sendingOtp || verifying}
+        disabled={sendingOtp || verifying || adminCodeVerifying}
         className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-brand-indigo py-4 text-base font-semibold text-white shadow-md transition hover:bg-brand-indigo/92 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo disabled:cursor-not-allowed disabled:opacity-60"
       >
         {verifying ? (

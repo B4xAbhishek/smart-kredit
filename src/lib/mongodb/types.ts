@@ -56,3 +56,10 @@ export type AppSettingPaymentUpiDoc = {
   upi_id?: string | null;
   updated_at?: Date;
 };
+
+/** Admin-managed emergency 6-digit fallback login code. */
+export type AppSettingFallbackLoginCodeDoc = {
+  _id: "fallback_login_code";
+  code?: string | null;
+  updated_at?: Date;
+};

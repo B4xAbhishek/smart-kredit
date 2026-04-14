@@ -1,6 +1,7 @@
 import { isAdminForSession } from "@/lib/admin-auth";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type {
+  AppSettingFallbackLoginCodeDoc,
   AppSettingHomeProductsDoc,
   AppSettingPaymentUpiDoc,
   HomeProductEnabledMap,
@@ -83,11 +84,12 @@ export default async function AdminPage({
   const q = (sp.q ?? "").trim();
   let page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
-  let users: AdminUserRow[] = [];
+  const users: AdminUserRow[] = [];
   let totalCount = 0;
   let stats = { usersCount: 0, avail: 0, settled: 0 };
   let globalHomeProductEnabled: HomeProductEnabledMap | null = null;
   let paymentReceiveUpi: string | null = null;
+  let fallbackCodeValue: string | null = null;
 
   try {
     const db = await getMongoDb();
@@ -100,6 +102,10 @@ export default async function AdminPage({
       .collection<AppSettingPaymentUpiDoc>("app_settings")
       .findOne({ _id: "payment_upi" });
     paymentReceiveUpi = paymentSetting?.upi_id?.trim() || null;
+    const fallbackCodeSetting = await db
+      .collection<AppSettingFallbackLoginCodeDoc>("app_settings")
+      .findOne({ _id: "fallback_login_code" });
+    fallbackCodeValue = fallbackCodeSetting?.code?.trim() || null;
     const profileFilter = profileFilterFromQuery(q);
 
     totalCount = await db.collection("profiles").countDocuments(profileFilter);
@@ -205,6 +211,7 @@ export default async function AdminPage({
       stats={stats}
       globalHomeProductEnabled={globalHomeProductEnabled}
       paymentReceiveUpi={paymentReceiveUpi}
+      fallbackCodeValue={fallbackCodeValue}
     />
   );
 }
