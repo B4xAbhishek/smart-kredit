@@ -10,6 +10,11 @@ export { SESSION_COOKIE } from "@/lib/session-constants";
 
 const SECRET = process.env.SESSION_SECRET || "dev-secret-change-in-production";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+const IS_PROD = process.env.NODE_ENV === "production";
+// SameSite=None;Secure is required for cookies to be sent inside React Native
+// WebViews (which treat all navigation as cross-site). In dev we fall back to
+// Lax so local HTTP testing still works.
+const COOKIE_SAME_SITE = IS_PROD ? "none" : "lax";
 
 function sign(payload: SessionPayload): string {
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -57,8 +62,8 @@ export async function createSession(
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: IS_PROD,
+    sameSite: COOKIE_SAME_SITE,
     path: "/",
     maxAge: MAX_AGE,
   });
@@ -81,8 +86,8 @@ export async function createEmailSession(
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: IS_PROD,
+    sameSite: COOKIE_SAME_SITE,
     path: "/",
     maxAge: MAX_AGE,
   });
@@ -118,8 +123,8 @@ export async function refreshSessionRepeatCustomer(repeat: boolean) {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: IS_PROD,
+    sameSite: COOKIE_SAME_SITE,
     path: "/",
     maxAge: MAX_AGE,
   });
