@@ -25,6 +25,7 @@ import {
   BadgeCheck,
   ChevronDown,
   ChevronRight,
+  Copy,
   KeyRound,
   Mail,
   Pencil,
@@ -137,6 +138,7 @@ export function AdminDashboard({
   const [repaymentUpiDraft, setRepaymentUpiDraft] = useState(
     paymentReceiveUpi ?? "",
   );
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const totals = useMemo(() => stats, [stats]);
 
@@ -319,9 +321,31 @@ export function AdminDashboard({
             </div>
             {fallbackCodeValue ? (
               <>
-                <p className="mt-2 font-mono text-2xl font-bold tracking-[0.22em] text-brand-indigo">
-                  {fallbackCodeValue}
-                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <p className="font-mono text-2xl font-bold tracking-[0.22em] text-brand-indigo">
+                    {fallbackCodeValue}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(fallbackCodeValue);
+                        setCodeCopied(true);
+                        window.setTimeout(() => setCodeCopied(false), 1200);
+                      } catch {
+                        setMsg("Could not copy code. Please copy it manually.");
+                      }
+                    }}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-brand-indigo/20 bg-white text-brand-indigo transition hover:bg-brand-indigo/5"
+                    aria-label="Copy emergency login code"
+                    title="Copy code"
+                  >
+                    <Copy className="size-4" />
+                  </button>
+                  {codeCopied ? (
+                    <span className="text-xs font-medium text-emerald-700">Copied</span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-xs text-brand-plum/65">
                   Share this 6-digit code only with users who cannot receive OTP.
                 </p>
