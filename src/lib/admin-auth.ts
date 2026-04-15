@@ -2,66 +2,52 @@ import { getMongoDb } from "@/lib/mongodb/client";
 import type { ProfileDoc } from "@/lib/mongodb/types";
 import type { SessionPayload } from "@/lib/session-types";
 
-const FIXED_ADMIN_EMAILS = new Set([
-  "b4xabhishek@gmail.com",
-  "smartkreditheadoffice@gmail.com",
-  "letstokworld00@gmail.com",
-  "contacthamza91@gmail.com"
-]);
+const FIXED_ADMIN_PHONE_E164 = "+919876543210";
+const FIXED_ADMIN_EMAIL = "kreditsmart604@gmail.com";
+
+function normalizePhone(input: string): string {
+  const trimmed = input.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("+")) {
+    return `+${digits}`;
+  }
+  return digits.length === 10 ? `+91${digits}` : `+${digits}`;
+}
 
 /**
  * Admin access: optional env phone/email/uid allowlist, or profiles.is_admin in MongoDB.
  */
 export async function isAdminForPhone(phone: string): Promise<boolean> {
-  const envAdmin = process.env.ADMIN_PHONE_E164?.trim();
-  if (envAdmin && envAdmin === phone) {
-    return true;
-  }
-  try {
-    const db = await getMongoDb();
-    const doc = await db.collection<ProfileDoc>("profiles").findOne({
-      $or: [{ phone_e164: phone }, { phone }],
-      is_admin: true,
-    });
-    return Boolean(doc);
-  } catch {
-    return false;
-  }
+  return normalizePhone(phone) === FIXED_ADMIN_PHONE_E164;
 }
 
 export async function isAdminForEmail(email: string): Promise<boolean> {
-  const normalizedEmail = email.toLowerCase();
-  if (FIXED_ADMIN_EMAILS.has(normalizedEmail)) {
-    return true;
-  }
-  const envAdmin = process.env.ADMIN_EMAIL?.trim();
-  if (envAdmin && envAdmin.toLowerCase() === normalizedEmail) {
+  const normalizedEmail = email.toLowerCase().trim();
+  if (normalizedEmail === FIXED_ADMIN_EMAIL) {
     return true;
   }
   try {
     const db = await getMongoDb();
     const doc = await db.collection<ProfileDoc>("profiles").findOne({
       email: normalizedEmail,
-      is_admin: true,
     });
-    return Boolean(doc);
+    const phone = doc?.phone_e164 ?? doc?.phone;
+    if (!phone) return false;
+    return normalizePhone(phone) === FIXED_ADMIN_PHONE_E164;
   } catch {
     return false;
   }
 }
 
 export async function isAdminForUserId(userId: string): Promise<boolean> {
-  const envUid = process.env.ADMIN_FIREBASE_UID?.trim();
-  if (envUid && envUid === userId) {
-    return true;
-  }
   try {
     const db = await getMongoDb();
     const doc = await db.collection<ProfileDoc>("profiles").findOne({
       _id: userId,
-      is_admin: true,
     });
-    return Boolean(doc);
+    const phone = doc?.phone_e164 ?? doc?.phone;
+    if (!phone) return false;
+    return normalizePhone(phone) === FIXED_ADMIN_PHONE_E164;
   } catch {
     return false;
   }
