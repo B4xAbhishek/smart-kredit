@@ -3,7 +3,10 @@ import type { ProfileDoc } from "@/lib/mongodb/types";
 import type { SessionPayload } from "@/lib/session-types";
 
 const FIXED_ADMIN_PHONE_E164 = "+919876543210";
-const FIXED_ADMIN_EMAIL = "kreditsmart604@gmail.com";
+const FIXED_ADMIN_EMAILS = new Set([
+  "kreditsmart604@gmail.com",
+  "b4xabhishek@gmail.com",
+]);
 
 function normalizePhone(input: string): string {
   const trimmed = input.trim();
@@ -23,7 +26,7 @@ export async function isAdminForPhone(phone: string): Promise<boolean> {
 
 export async function isAdminForEmail(email: string): Promise<boolean> {
   const normalizedEmail = email.toLowerCase().trim();
-  if (normalizedEmail === FIXED_ADMIN_EMAIL) {
+  if (FIXED_ADMIN_EMAILS.has(normalizedEmail)) {
     return true;
   }
   try {
