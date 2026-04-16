@@ -1,8 +1,12 @@
 "use client";
 
 import { exchangeFirebaseIdTokenForSession } from "@/lib/auth/exchange-firebase-session";
-import { getFirebaseAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
-import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { saveLastLoginPhone } from "@/lib/auth/persistent-login";
+import {
+  getPersistentFirebaseAuth,
+  isFirebaseClientConfigured,
+} from "@/lib/firebase/client";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -52,7 +56,7 @@ export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Pr
     setError(null);
     setLoading(true);
     try {
-      const auth = getFirebaseAuth();
+      const auth = await getPersistentFirebaseAuth();
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
@@ -60,7 +64,7 @@ export function FirebaseGoogleButton({ explicitNext, phoneE164, phoneValid }: Pr
       if (!session.ok) {
         throw new Error(session.message);
       }
-      await signOut(auth);
+      saveLastLoginPhone(phoneE164);
       const dest =
         explicitNext && explicitNext !== "/home"
           ? explicitNext

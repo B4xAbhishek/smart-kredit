@@ -1,6 +1,7 @@
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Suspense } from "react";
 import { LoginForm } from "./login-form";
+import { LoginSessionRestore } from "./login-session-restore";
 
 export default function LoginPage() {
   return (
@@ -24,6 +25,9 @@ export default function LoginPage() {
         className="relative z-[2] -mt-16 flex flex-1 flex-col rounded-t-[2rem] bg-white px-6 pb-10 pt-8 shadow-[0_-12px_40px_rgba(60,21,91,0.08)] sm:px-8"
       >
         <div className="mx-auto w-full max-w-md">
+          <Suspense fallback={null}>
+            <LoginSessionRestore />
+          </Suspense>
           <Suspense
             fallback={
               <div className="h-40 animate-pulse rounded-2xl bg-brand-lavender/50" />

@@ -1,9 +1,11 @@
+"use client";
+
 import { AccountPromoIllustration } from "@/components/account/AccountPromoIllustration";
 import { contactMailtoHref, DEFAULT_CONTACT_EMAIL } from "@/lib/contact";
+import { LogoutButton } from "./logout-button";
 import {
   ChevronRight,
   FileText,
-  LogOut,
   Mail,
   Scale,
   Shield,
@@ -121,22 +123,7 @@ export function AccountShell({
             </span>
           </Link>
 
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="group flex w-full cursor-pointer items-center gap-3 rounded-xl bg-white px-3 py-3.5 text-left shadow-sm ring-1 ring-zinc-100 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-indigo text-white shadow-sm">
-                <LogOut className="size-5" strokeWidth={2} aria-hidden />
-              </span>
-              <span className="flex-1 text-[15px] font-medium text-zinc-900">
-                Logout
-              </span>
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-indigo/12 text-brand-indigo transition group-hover:bg-brand-indigo/18">
-                <ChevronRight className="size-4" strokeWidth={2.5} aria-hidden />
-              </span>
-            </button>
-          </form>
+          <LogoutButton signOutAction={signOut} />
         </nav>
       </div>
     </div>

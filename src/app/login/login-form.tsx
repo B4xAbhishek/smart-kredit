@@ -2,12 +2,15 @@
 
 import { exchangeFallbackCodeForSession } from "@/lib/auth/exchange-fallback-code-session";
 import { exchangeFirebaseIdTokenForSession } from "@/lib/auth/exchange-firebase-session";
+import { saveLastLoginPhone } from "@/lib/auth/persistent-login";
 import { FirebaseGoogleButton } from "@/components/auth/FirebaseGoogleButton";
-import { getFirebaseAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
+import {
+  getPersistentFirebaseAuth,
+  isFirebaseClientConfigured,
+} from "@/lib/firebase/client";
 import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
-  signOut,
   type ConfirmationResult,
 } from "firebase/auth";
 import { Loader2, Shield, Smartphone } from "lucide-react";
@@ -133,7 +136,7 @@ export function LoginForm() {
     clearRecaptcha();
     confirmationRef.current = null;
     try {
-      const auth = getFirebaseAuth();
+      const auth = await getPersistentFirebaseAuth();
       const appVerifier = new RecaptchaVerifier(auth, RECAPTCHA_CONTAINER_ID, {
         size: "invisible",
       });
@@ -178,8 +181,8 @@ export function LoginForm() {
     }
 
     setVerifying(true);
-    const auth = getFirebaseAuth();
     try {
+      const auth = await getPersistentFirebaseAuth();
       await confirmation.confirm(otp.trim());
       const user = auth.currentUser;
       if (!user) {
@@ -188,11 +191,11 @@ export function LoginForm() {
       }
       const idToken = await user.getIdToken();
       const session = await exchangeFirebaseIdTokenForSession(idToken, phone);
-      await signOut(auth);
       if (!session.ok) {
         setError(session.message);
         return;
       }
+      saveLastLoginPhone(phone);
       const dest =
         explicitNext && explicitNext !== "/home"
           ? explicitNext
@@ -208,11 +211,6 @@ export function LoginForm() {
         setError(mapFirebasePhoneError(code));
       } else {
         setError("Verification failed. Try again.");
-      }
-      try {
-        await signOut(auth);
-      } catch {
-        /* ignore */
       }
     } finally {
       setVerifying(false);
@@ -239,6 +237,7 @@ export function LoginForm() {
         setError(session.message);
         return;
       }
+      saveLastLoginPhone(phone);
       const dest =
         explicitNext && explicitNext !== "/home"
           ? explicitNext

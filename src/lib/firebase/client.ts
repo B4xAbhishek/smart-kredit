@@ -1,5 +1,10 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  getAuth,
+  setPersistence,
+  type Auth,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -33,4 +38,16 @@ function getFirebaseApp(): FirebaseApp {
 
 export function getFirebaseAuth(): Auth {
   return getAuth(getFirebaseApp());
+}
+
+let persistencePromise: Promise<Auth> | null = null;
+
+export async function getPersistentFirebaseAuth(): Promise<Auth> {
+  const auth = getFirebaseAuth();
+  if (!persistencePromise) {
+    persistencePromise = setPersistence(auth, browserLocalPersistence).then(
+      () => auth,
+    );
+  }
+  return persistencePromise;
 }
