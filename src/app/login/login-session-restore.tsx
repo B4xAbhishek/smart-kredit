@@ -6,20 +6,37 @@ import {
   getPersistentFirebaseAuth,
   isFirebaseClientConfigured,
 } from "@/lib/firebase/client";
+import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export function LoginSessionRestore() {
+type RestoreState = "checking" | "restoring" | "idle";
+
+/**
+ * Silently re-exchanges a persisted Firebase auth session for an `sk-session`
+ * cookie when the server cookie is missing but Firebase still has the user
+ * (e.g. after the WebView was killed and the HTTP-only session cookie was
+ * lost, but IndexedDB-backed Firebase auth survived).
+ *
+ * Renders `children` (the login form) only after the restore attempt has
+ * either navigated away or determined there is nothing to restore, so the
+ * user does not briefly see the login form when they are actually logged in.
+ */
+export function LoginSessionRestore({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [restoring, setRestoring] = useState(true);
+  const [state, setState] = useState<RestoreState>("checking");
 
   useEffect(() => {
     let cancelled = false;
 
     async function restoreSession() {
       if (!isFirebaseClientConfigured()) {
-        if (!cancelled) setRestoring(false);
+        if (!cancelled) setState("idle");
         return;
       }
 
@@ -29,15 +46,18 @@ export function LoginSessionRestore() {
 
         const user = auth.currentUser;
         if (!user) {
-          if (!cancelled) setRestoring(false);
+          if (!cancelled) setState("idle");
           return;
         }
 
-        const assertedPhoneE164 = user.phoneNumber ?? getLastLoginPhone() ?? undefined;
+        const assertedPhoneE164 =
+          user.phoneNumber ?? getLastLoginPhone() ?? undefined;
         if (!assertedPhoneE164) {
-          if (!cancelled) setRestoring(false);
+          if (!cancelled) setState("idle");
           return;
         }
+
+        if (!cancelled) setState("restoring");
 
         const idToken = await user.getIdToken();
         const session = await exchangeFirebaseIdTokenForSession(
@@ -46,7 +66,7 @@ export function LoginSessionRestore() {
         );
 
         if (!session.ok) {
-          if (!cancelled) setRestoring(false);
+          if (!cancelled) setState("idle");
           return;
         }
 
@@ -59,9 +79,12 @@ export function LoginSessionRestore() {
         if (!cancelled) {
           router.replace(dest);
           router.refresh();
+          // Intentionally leave state as "restoring" — keeps the loader on
+          // screen until the navigation completes instead of flashing the
+          // login form.
         }
       } catch {
-        if (!cancelled) setRestoring(false);
+        if (!cancelled) setState("idle");
       }
     }
 
@@ -72,13 +95,20 @@ export function LoginSessionRestore() {
     };
   }, [router, searchParams]);
 
-  if (!restoring) {
-    return null;
+  if (state === "idle") {
+    return <>{children}</>;
   }
 
   return (
-    <div className="rounded-2xl border border-brand-indigo/10 bg-brand-lavender/40 px-4 py-3 text-center text-sm text-brand-plum/75">
-      Restoring your session...
+    <div
+      className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-brand-plum/75"
+      role="status"
+      aria-live="polite"
+    >
+      <Loader2 className="size-6 animate-spin text-brand-indigo" aria-hidden />
+      <p className="text-sm font-medium">
+        {state === "restoring" ? "Signing you in..." : "Checking your session..."}
+      </p>
     </div>
   );
 }
