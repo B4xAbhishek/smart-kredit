@@ -1,4 +1,5 @@
 import { LegalPageShell } from "@/components/legal/LegalPageShell";
+import { getContactSettings } from "@/lib/contact-settings";
 import { PrivacyPolicyContent } from "@/components/legal/privacy-policy-content";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -11,11 +12,13 @@ export const metadata: Metadata = {
 
 const LAST_UPDATED = "8 April 2026";
 
-export default function PrivacyPolicyPage() {
+export default async function PrivacyPolicyPage() {
+  const { contactEmail } = await getContactSettings();
   return (
     <LegalPageShell
       title="Privacy Policy"
       lastUpdated={LAST_UPDATED}
+      contactEmail={contactEmail}
       lede={
         <p>
           Smart Kredit (“<strong>we</strong>”, “<strong>us</strong>”, or “

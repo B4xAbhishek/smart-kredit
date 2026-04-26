@@ -50,3 +50,9 @@ export type MobileOrderDetailResponse = {
 export type MobilePaymentConfigResponse = {
   paymentReceiveUpi: string | null;
 };
+
+export type MobileContactSettingsResponse = {
+  contactEmail: string;
+  contactPhone: string | null;
+  contactMailtoHref: string;
+};

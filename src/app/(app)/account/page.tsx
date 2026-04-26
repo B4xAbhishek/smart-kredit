@@ -1,5 +1,6 @@
 import { logoutAction } from "@/app/login/actions";
 import { formatAccountId } from "@/lib/mask-account-id";
+import { getContactSettings } from "@/lib/contact-settings";
 import { getSession } from "@/lib/session";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -24,6 +25,7 @@ function isAndroidWebViewUserAgent(userAgent: string): boolean {
 
 export default async function AccountPage() {
   const session = await getSession();
+  const { contactEmail } = await getContactSettings();
   const requestHeaders = await headers();
   const userAgent = requestHeaders.get("user-agent") ?? "";
   const showAdminLink = !isAndroidWebViewUserAgent(userAgent);
@@ -36,6 +38,7 @@ export default async function AccountPage() {
     <AccountShell
       accountLabel={accountLabel}
       signOut={signOut}
+      contactEmail={contactEmail}
       showAdminLink={showAdminLink}
     />
   );

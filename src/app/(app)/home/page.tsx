@@ -20,6 +20,7 @@ import {
   resolveProfileUserId,
 } from "@/lib/session-profile";
 import { contactMailtoHref } from "@/lib/contact";
+import { getContactSettings } from "@/lib/contact-settings";
 import { Bell, CreditCard, Zap } from "lucide-react";
 import Link from "next/link";
 
@@ -33,6 +34,7 @@ function formatInr(n: number) {
 
 export default async function HomePage() {
   const session = await getSession();
+  const { contactEmail } = await getContactSettings();
   await markHomeVisitedForSession(session);
   const enabledMap = await getHomeProductEnabledMapForSession(session);
   const globalMap = await getGlobalHomeProductEnabledMap();
@@ -80,7 +82,7 @@ export default async function HomePage() {
             boxClassName="w-auto max-w-none"
           />
           <Link
-            href={contactMailtoHref()}
+            href={contactMailtoHref(contactEmail)}
             className="shrink-0 self-center cursor-pointer rounded-full p-2.5 text-brand-plum ring-1 ring-brand-plum/10 transition hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
             aria-label="Contact us by email"
           >

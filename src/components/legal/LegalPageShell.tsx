@@ -26,11 +26,13 @@ export function LegalPageShell({
   title,
   lastUpdated,
   lede,
+  contactEmail = DEFAULT_CONTACT_EMAIL,
   children,
 }: {
   title: string;
   lastUpdated: string;
   lede: React.ReactNode;
+  contactEmail?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -61,10 +63,10 @@ export function LegalPageShell({
           <p>
             Questions? Use <strong>Contact Us</strong> in the app or email{" "}
             <a
-              href={contactMailtoHref()}
+              href={contactMailtoHref(contactEmail)}
               className="font-semibold text-brand-indigo underline-offset-2 hover:underline"
             >
-              {DEFAULT_CONTACT_EMAIL}
+              {contactEmail}
             </a>
             .
           </p>

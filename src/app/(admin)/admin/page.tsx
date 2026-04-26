@@ -1,6 +1,7 @@
 import { isAdminForSession } from "@/lib/admin-auth";
 import { getMongoDb } from "@/lib/mongodb/client";
 import type {
+  AppSettingContactDoc,
   AppSettingFallbackLoginCodeDoc,
   AppSettingHomeProductsDoc,
   AppSettingPaymentUpiDoc,
@@ -90,6 +91,8 @@ export default async function AdminPage({
   let globalHomeProductEnabled: HomeProductEnabledMap | null = null;
   let paymentReceiveUpi: string | null = null;
   let fallbackCodeValue: string | null = null;
+  let contactEmail = "smartkredits@gmail.com";
+  let contactPhone: string | null = null;
 
   try {
     const db = await getMongoDb();
@@ -106,6 +109,11 @@ export default async function AdminPage({
       .collection<AppSettingFallbackLoginCodeDoc>("app_settings")
       .findOne({ _id: "fallback_login_code" });
     fallbackCodeValue = fallbackCodeSetting?.code?.trim() || null;
+    const contactSetting = await db
+      .collection<AppSettingContactDoc>("app_settings")
+      .findOne({ _id: "contact_us" });
+    contactEmail = contactSetting?.email?.trim() || contactEmail;
+    contactPhone = contactSetting?.phone?.trim() || null;
     const profileFilter = profileFilterFromQuery(q);
 
     totalCount = await db.collection("profiles").countDocuments(profileFilter);
@@ -212,6 +220,8 @@ export default async function AdminPage({
       globalHomeProductEnabled={globalHomeProductEnabled}
       paymentReceiveUpi={paymentReceiveUpi}
       fallbackCodeValue={fallbackCodeValue}
+      contactEmail={contactEmail}
+      contactPhone={contactPhone}
     />
   );
 }

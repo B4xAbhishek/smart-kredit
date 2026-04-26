@@ -63,3 +63,11 @@ export type AppSettingFallbackLoginCodeDoc = {
   code?: string | null;
   updated_at?: Date;
 };
+
+/** Global Contact Us details shown in account/home/legal screens. */
+export type AppSettingContactDoc = {
+  _id: "contact_us";
+  email?: string | null;
+  phone?: string | null;
+  updated_at?: Date;
+};

@@ -116,6 +116,8 @@ export function AdminDashboard({
   globalHomeProductEnabled,
   paymentReceiveUpi,
   fallbackCodeValue,
+  contactEmail,
+  contactPhone,
 }: {
   users: AdminUserRow[];
   searchQ: string;
@@ -128,6 +130,8 @@ export function AdminDashboard({
   /** Shown on app repayment / manual transfer (Mongo `app_settings.payment_upi`). */
   paymentReceiveUpi: string | null;
   fallbackCodeValue: string | null;
+  contactEmail: string;
+  contactPhone: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -138,6 +142,8 @@ export function AdminDashboard({
   const [repaymentUpiDraft, setRepaymentUpiDraft] = useState(
     paymentReceiveUpi ?? "",
   );
+  const [contactEmailDraft, setContactEmailDraft] = useState(contactEmail);
+  const [contactPhoneDraft, setContactPhoneDraft] = useState(contactPhone ?? "");
   const [codeCopied, setCodeCopied] = useState(false);
 
   const totals = useMemo(() => stats, [stats]);
@@ -408,6 +414,124 @@ export function AdminDashboard({
             }
           />
         ) : null}
+
+        <div className="border-b border-zinc-200 px-4 py-4 lg:px-8">
+          <div className="rounded-xl border border-brand-plum/12 bg-brand-lavender/25 p-4">
+            <p className="text-sm font-semibold text-brand-plum">
+              Contact Us (global)
+            </p>
+            <p className="mt-1 text-xs text-brand-plum/60">
+              Controls the support email and phone shown across app screens and mobile
+              API.
+            </p>
+            <form
+              className="mt-3 grid gap-2 sm:grid-cols-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const payload = {
+                  contactEmail: contactEmailDraft.trim(),
+                  contactPhone: contactPhoneDraft.trim() || null,
+                };
+                runAction(async () => {
+                  const response = await fetch("/api/admin/contact-settings", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  });
+                  const data = (await response.json()) as { error?: string };
+                  if (!response.ok) {
+                    return { error: data.error ?? "Could not update contact settings." };
+                  }
+                  setInfoMsg("Contact settings updated.");
+                  return { ok: true };
+                });
+              }}
+            >
+              <input
+                type="email"
+                value={contactEmailDraft}
+                onChange={(e) => setContactEmailDraft(e.target.value)}
+                placeholder="support@company.com"
+                required
+                autoComplete="off"
+                className="min-w-0 rounded-lg border border-brand-plum/20 bg-white px-3 py-2 text-sm text-brand-plum"
+                disabled={pending}
+              />
+              <input
+                type="text"
+                value={contactPhoneDraft}
+                onChange={(e) => setContactPhoneDraft(e.target.value)}
+                placeholder="+91 98765 43210"
+                autoComplete="off"
+                className="min-w-0 rounded-lg border border-brand-plum/20 bg-white px-3 py-2 text-sm text-brand-plum"
+                disabled={pending}
+              />
+              <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="rounded-lg bg-brand-indigo px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  Save (PUT)
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    runAction(async () => {
+                      const response = await fetch("/api/admin/contact-settings", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          contactEmail: contactEmailDraft.trim(),
+                          contactPhone: contactPhoneDraft.trim() || null,
+                        }),
+                      });
+                      const data = (await response.json()) as { error?: string };
+                      if (!response.ok) {
+                        return {
+                          error: data.error ?? "Could not create contact settings.",
+                        };
+                      }
+                      setInfoMsg("Contact settings created.");
+                      return { ok: true };
+                    });
+                  }}
+                  className="rounded-lg border border-brand-indigo/30 bg-white px-3 py-2 text-sm font-semibold text-brand-indigo disabled:opacity-50"
+                >
+                  Create (POST)
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    if (
+                      typeof window !== "undefined" &&
+                      !window.confirm("Reset Contact Us to default email and empty phone?")
+                    ) {
+                      return;
+                    }
+                    runAction(async () => {
+                      const response = await fetch("/api/admin/contact-settings", {
+                        method: "DELETE",
+                      });
+                      const data = (await response.json()) as { error?: string };
+                      if (!response.ok) {
+                        return { error: data.error ?? "Could not delete contact settings." };
+                      }
+                      setContactPhoneDraft("");
+                      setInfoMsg("Contact settings removed. Default email will be used.");
+                      return { ok: true };
+                    });
+                  }}
+                  className="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50"
+                >
+                  Delete (DELETE)
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
 
         <div className="border-b border-zinc-200 px-4 py-4 lg:px-8">
           <div className="rounded-xl border border-brand-plum/12 bg-brand-lavender/25 p-4">
