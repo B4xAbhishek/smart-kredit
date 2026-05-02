@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
           const amountRupees = Math.round(Number(row.amount_rupees ?? 0));
           const productKey = resolveHomeProductKeyForLoan(row);
           const paymentAmountRupees = amountRupees + ORDER_INTEREST_FEE_RUPEES;
-          const canOpenDetail =
+          const canOpenCatalogDetail =
             statusVariant !== "settled" &&
             productKey &&
             isHomeProductVisibleForUser(
@@ -86,6 +86,12 @@ export async function GET(request: NextRequest) {
               homeProductEnabled,
               productKey,
             );
+          const detailTargetId =
+            statusVariant === "settled"
+              ? null
+              : canOpenCatalogDetail
+                ? productKey
+                : String(doc._id);
 
           return {
             id: String(doc._id),
@@ -96,7 +102,7 @@ export async function GET(request: NextRequest) {
                 ? "Settled"
                 : "Waiting for repayment",
             statusVariant,
-            ...(canOpenDetail ? { detailProductId: productKey } : {}),
+            ...(detailTargetId ? { detailProductId: detailTargetId } : {}),
             ...(statusVariant !== "settled" ? { paymentAmountRupees } : {}),
             createdMs: tsToMillis(row.created_at),
           };

@@ -4,6 +4,7 @@ import {
   buildHomeProductLoanMap,
   loanStatusDisplay,
   normalizeLoanStatus,
+  resolveHomeProductKeyForLoan,
   type HomeLoanDoc,
 } from "@/lib/home-product-loan";
 import { HOME_PRODUCTS } from "@/lib/home-products";
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
     keyof typeof HOME_PRODUCTS,
     { amountRupees: number; status: string }
   >();
+  let customRecommendations: MobileHomeResponse["recommendations"] = [];
 
   if (profileId) {
     try {
@@ -42,14 +44,44 @@ export async function GET(request: NextRequest) {
       const docs = await db
         .collection("loans")
         .find({ userId: profileId })
+        .sort({ created_at: -1 })
         .toArray();
       loanByHomeId = buildHomeProductLoanMap(docs as HomeLoanDoc[]);
+      customRecommendations = docs
+        .filter((doc) => {
+          const row = doc as {
+            product_name?: string;
+            amount_rupees?: unknown;
+            default_product_key?: string | null;
+            status?: unknown;
+          };
+          if (normalizeLoanStatus(row.status) === "settled") {
+            return false;
+          }
+          return !resolveHomeProductKeyForLoan(row);
+        })
+        .map((doc) => {
+          const row = doc as {
+            _id: unknown;
+            product_name?: string;
+            amount_rupees?: unknown;
+            status?: unknown;
+          };
+          const statusUi = loanStatusDisplay(row.status ?? "active");
+          return {
+            id: String(row._id),
+            productName: String(row.product_name ?? "Loan"),
+            amountRupees: Math.round(Number(row.amount_rupees ?? 0)),
+            status: statusUi.label,
+            statusVariant: normalizeLoanStatus(row.status ?? "active"),
+          };
+        });
     } catch {
       // Keep response usable even if loan lookup fails.
     }
   }
 
-  const recommendations: MobileHomeResponse["recommendations"] = Object.values(
+  const catalogRecommendations: MobileHomeResponse["recommendations"] = Object.values(
     HOME_PRODUCTS,
   )
     .filter((row) => {
@@ -63,14 +95,17 @@ export async function GET(request: NextRequest) {
       const fromDb = loanByHomeId.get(row.id);
       const amountRupees = fromDb ? fromDb.amountRupees : row.loanAmountRupees;
       const statusUi = loanStatusDisplay(fromDb?.status ?? "active");
+      const loanRowId =
+        fromDb?.loanId && fromDb.loanId.length > 0 ? fromDb.loanId : row.id;
       return {
-        id: row.id,
+        id: loanRowId,
         productName: row.productName,
         amountRupees,
         status: statusUi.label,
         statusVariant: normalizeLoanStatus(fromDb?.status ?? "active"),
       };
     });
+  const recommendations = [...customRecommendations, ...catalogRecommendations];
 
   return NextResponse.json<MobileHomeResponse>({
     featuredAmountRange: "₹2,000 - 80,000",

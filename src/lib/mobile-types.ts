@@ -16,7 +16,7 @@ export type MobileAuthResponse = {
 };
 
 export type MobileHomeRecommendation = {
-  id: HomeProductId;
+  id: string;
   productName: string;
   amountRupees: number;
   status: string;
@@ -34,12 +34,12 @@ export type MobileOrdersLoan = {
   amountRupees: number;
   status: string;
   statusVariant: "settled" | "active" | "pending";
-  detailProductId?: HomeProductId;
+  detailProductId?: string;
   paymentAmountRupees?: number;
 };
 
 export type MobileOrderDetailResponse = {
-  productId: HomeProductId;
+  productId: string;
   productName: string;
   loanAmountRupees: number;
   interestFeeRupees: number;

@@ -80,9 +80,15 @@ export function shouldIncludeLoanOnOrdersList(
  */
 export function buildHomeProductLoanMap(
   docs: HomeLoanDoc[],
-): Map<HomeProductId, { amountRupees: number; status: string }> {
+): Map<
+  HomeProductId,
+  { amountRupees: number; status: string; loanId: string }
+> {
   const sorted = [...docs].sort((a, b) => createdMs(b.created_at) - createdMs(a.created_at));
-  const map = new Map<HomeProductId, { amountRupees: number; status: string }>();
+  const map = new Map<
+    HomeProductId,
+    { amountRupees: number; status: string; loanId: string }
+  >();
 
   for (const doc of sorted) {
     const k = String(doc.default_product_key ?? "");
@@ -90,6 +96,7 @@ export function buildHomeProductLoanMap(
       map.set(k, {
         amountRupees: Math.round(Number(doc.amount_rupees ?? 0)),
         status: String(doc.status ?? ""),
+        loanId: String((doc as { _id?: unknown })._id ?? ""),
       });
     }
   }
@@ -101,6 +108,7 @@ export function buildHomeProductLoanMap(
       map.set(resolved, {
         amountRupees: Math.round(Number(doc.amount_rupees ?? 0)),
         status: String(doc.status ?? ""),
+        loanId: String((doc as { _id?: unknown })._id ?? ""),
       });
     }
   }
