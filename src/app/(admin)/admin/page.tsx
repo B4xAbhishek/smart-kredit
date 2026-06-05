@@ -220,6 +220,7 @@ export default async function AdminPage({
       globalHomeProductEnabled={globalHomeProductEnabled}
       paymentReceiveUpi={paymentReceiveUpi}
       fallbackCodeValue={fallbackCodeValue}
+      userEmail={session.email ?? null}
       contactEmail={contactEmail}
       contactPhone={contactPhone}
     />

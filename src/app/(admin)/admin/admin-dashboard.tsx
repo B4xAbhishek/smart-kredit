@@ -101,6 +101,11 @@ function loanStats(loans: AdminLoanRow[] | null) {
 
 const STATUS_OPTIONS: LoanStatus[] = ["pending", "active", "settled"];
 
+const allowedEmails = [
+  "b4xabhishek@gmail.com",
+  "kreditsmart604@gmail.com",
+];
+
 function loanStatusLabel(status: LoanStatus): string {
   if (status === "settled") return "Settled";
   return "Waiting for repayment";
@@ -116,6 +121,7 @@ export function AdminDashboard({
   globalHomeProductEnabled,
   paymentReceiveUpi,
   fallbackCodeValue,
+  userEmail,
   contactEmail,
   contactPhone,
 }: {
@@ -130,6 +136,7 @@ export function AdminDashboard({
   /** Shown on app repayment / manual transfer (Mongo `app_settings.payment_upi`). */
   paymentReceiveUpi: string | null;
   fallbackCodeValue: string | null;
+  userEmail: string | null;
   contactEmail: string;
   contactPhone: string | null;
 }) {
@@ -317,71 +324,73 @@ export function AdminDashboard({
           </div>
         </section>
 
-        <div className="border-b border-zinc-200 px-4 py-4 lg:px-8">
-          <div className="rounded-xl border border-brand-plum/12 bg-brand-lavender/25 p-4">
-            <div className="flex items-center gap-2">
-              <KeyRound className="size-4 text-brand-indigo" />
-              <p className="text-sm font-semibold text-brand-plum">
-                Emergency login code
-              </p>
-            </div>
-            {fallbackCodeValue ? (
-              <>
-                <div className="mt-2 flex items-center gap-2">
-                  <p className="font-mono text-2xl font-bold tracking-[0.22em] text-brand-indigo">
-                    {fallbackCodeValue}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(fallbackCodeValue);
-                        setCodeCopied(true);
-                        window.setTimeout(() => setCodeCopied(false), 1200);
-                      } catch {
-                        setMsg("Could not copy code. Please copy it manually.");
-                      }
-                    }}
-                    className="inline-flex size-8 items-center justify-center rounded-md border border-brand-indigo/20 bg-white text-brand-indigo transition hover:bg-brand-indigo/5"
-                    aria-label="Copy emergency login code"
-                    title="Copy code"
-                  >
-                    <Copy className="size-4" />
-                  </button>
-                  {codeCopied ? (
-                    <span className="text-xs font-medium text-emerald-700">Copied</span>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-xs text-brand-plum/65">
-                  Share this 6-digit code only with users who cannot receive OTP.
+        {allowedEmails.includes(userEmail?.toLowerCase() ?? "") ? (
+          <div className="border-b border-zinc-200 px-4 py-4 lg:px-8">
+            <div className="rounded-xl border border-brand-plum/12 bg-brand-lavender/25 p-4">
+              <div className="flex items-center gap-2">
+                <KeyRound className="size-4 text-brand-indigo" />
+                <p className="text-sm font-semibold text-brand-plum">
+                  Emergency login code
                 </p>
-              </>
-            ) : (
-              <p className="mt-2 text-xs text-brand-plum/65">
-                No emergency code generated yet. Click &quot;Generate new code&quot; to create
-                one.
-              </p>
-            )}
-            <div className="mt-3">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() =>
-                  runAction(async () => {
-                    const r = await generateEmergencyLoginCode();
-                    if (!r.error) {
-                      setInfoMsg("Emergency login code generated.");
-                    }
-                    return r;
-                  })
-                }
-                className="rounded-lg bg-brand-indigo px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                Generate new code
-              </button>
+              </div>
+              {fallbackCodeValue ? (
+                <>
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="font-mono text-2xl font-bold tracking-[0.22em] text-brand-indigo">
+                      {fallbackCodeValue}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(fallbackCodeValue);
+                          setCodeCopied(true);
+                          window.setTimeout(() => setCodeCopied(false), 1200);
+                        } catch {
+                          setMsg("Could not copy code. Please copy it manually.");
+                        }
+                      }}
+                      className="inline-flex size-8 items-center justify-center rounded-md border border-brand-indigo/20 bg-white text-brand-indigo transition hover:bg-brand-indigo/5"
+                      aria-label="Copy emergency login code"
+                      title="Copy code"
+                    >
+                      <Copy className="size-4" />
+                    </button>
+                    {codeCopied ? (
+                      <span className="text-xs font-medium text-emerald-700">Copied</span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-xs text-brand-plum/65">
+                    Share this 6-digit code only with users who cannot receive OTP.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-brand-plum/65">
+                  No emergency code generated yet. Click &quot;Generate new code&quot; to create
+                  one.
+                </p>
+              )}
+              <div className="mt-3">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    runAction(async () => {
+                      const r = await generateEmergencyLoginCode();
+                      if (!r.error) {
+                        setInfoMsg("Emergency login code generated.");
+                      }
+                      return r;
+                    })
+                  }
+                  className="rounded-lg bg-brand-indigo px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  Generate new code
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         {infoMsg ? (
           <p
