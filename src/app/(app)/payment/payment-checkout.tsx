@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, FileText, Hand, X } from "lucide-react";
+import { ArrowLeft, Hand, Scan, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import paytmLogo from "@/assets/paytm.png";
 import phonepeLogo from "@/assets/phonepe.png";
 import utrHowToFind from "@/assets/utr-how-to-find.png";
+import { UpiScanner, type ScannedUpi } from "@/components/payment/upi-scanner";
 
 const INITIAL_SECONDS = 5 * 60 + 10; // 05:10
 
@@ -58,7 +59,7 @@ function isAndroidUserAgent(): boolean {
  */
 function navigateToUpiPay(
   pa: string,
-  androidPackage: string,
+  androidPackage?: string,
   opts?: { am?: string },
 ): void {
   if (typeof window === "undefined") return;
@@ -66,7 +67,8 @@ function navigateToUpiPay(
   const upiHref = `upi://pay?${q}`;
   if (isAndroidUserAgent()) {
     const fallback = encodeURIComponent(window.location.href);
-    window.location.href = `intent://pay?${q}#Intent;scheme=upi;package=${androidPackage};S.browser_fallback_url=${fallback};end`;
+    const pkg = androidPackage ? `package=${androidPackage};` : "";
+    window.location.href = `intent://pay?${q}#Intent;scheme=upi;${pkg}S.browser_fallback_url=${fallback};end`;
     return;
   }
   window.location.href = upiHref;
@@ -99,6 +101,7 @@ export function PaymentCheckout({
   const [utrHelpOpen, setUtrHelpOpen] = useState(false);
   const [submitSuccessOpen, setSubmitSuccessOpen] = useState(false);
   const [refError, setRefError] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const refDigits = refNo.replace(/\D/g, "");
 
@@ -165,6 +168,15 @@ export function PaymentCheckout({
     );
   }, [hasUpi, upiTrimmed, amountAm]);
 
+  const onPayScanned = useCallback(
+    (upi: ScannedUpi) => {
+      setScannerOpen(false);
+      const am = upi.am ?? amountAm;
+      navigateToUpiPay(upi.pa, undefined, am ? { am } : undefined);
+    },
+    [amountAm],
+  );
+
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-gradient-to-b from-[#ebe4fb] via-[#ede8f7] to-[#e2daf3] pb-6">
       <header className="relative overflow-hidden rounded-b-[1.75rem] bg-gradient-to-br from-[#ebe4fb] via-[#dfd4f5] to-[#d3c6ee] px-4 pb-8 pt-4 shadow-md">
@@ -200,9 +212,14 @@ export function PaymentCheckout({
             </p>
             {/* <p className="mt-1 text-sm text-zinc-400 line-through">₹ 7,025</p> */}
           </div>
-          <span className="mt-1 inline-flex text-brand-indigo" aria-hidden>
-            <FileText className="size-7" strokeWidth={1.5} />
-          </span>
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            className="mt-1 inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-brand-indigo ring-1 ring-brand-indigo/25 transition hover:bg-brand-lavender focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo"
+            aria-label="Scan UPI QR code"
+          >
+            <Scan className="size-7" strokeWidth={1.5} />
+          </button>
         </div>
 
         <p
@@ -394,6 +411,14 @@ export function PaymentCheckout({
         </div>
         </div>
       </div>
+
+      {scannerOpen ? (
+        <UpiScanner
+          fallbackAmount={amountAm}
+          onClose={() => setScannerOpen(false)}
+          onPay={onPayScanned}
+        />
+      ) : null}
 
       {submitSuccessOpen ? (
         <div
