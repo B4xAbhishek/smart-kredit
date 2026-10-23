@@ -41,7 +41,7 @@ export default async function HomePage() {
   const profileId = await resolveProfileUserId(session);
   let loanByHomeId = new Map<
     HomeProductId,
-    { amountRupees: number; status: string }
+    { amountRupees: number; status: string; loanId: string }
   >();
 
   if (profileId) {

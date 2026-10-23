@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   let loanByHomeId = new Map<
     keyof typeof HOME_PRODUCTS,
-    { amountRupees: number; status: string }
+    { amountRupees: number; status: string; loanId: string }
   >();
   let customRecommendations: MobileHomeResponse["recommendations"] = [];
 
