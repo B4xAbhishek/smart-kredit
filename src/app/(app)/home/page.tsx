@@ -8,6 +8,7 @@ import {
   buildHomeProductLoanMap,
   loanStatusDisplay,
   normalizeLoanStatus,
+  resolveHomeProductKeyForLoan,
   type HomeLoanDoc,
 } from "@/lib/home-product-loan";
 import { ensureDefaultLoansForUser } from "@/lib/mongodb/default-loans";
@@ -26,6 +27,16 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+const ORDER_INTEREST_FEE_RUPEES = 45;
+
+type RecommendationCard = {
+  id: string;
+  productName: string;
+  amountRupees: number;
+  status: unknown;
+  detailHref?: string;
+};
+
 function formatInr(n: number) {
   return new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 0,
@@ -43,6 +54,7 @@ export default async function HomePage() {
     HomeProductId,
     { amountRupees: number; status: string; loanId: string }
   >();
+  let customRows: RecommendationCard[] = [];
 
   if (profileId) {
     try {
@@ -51,23 +63,61 @@ export default async function HomePage() {
       const docs = await db
         .collection("loans")
         .find({ userId: profileId })
+        .sort({ created_at: -1 })
         .toArray();
       loanByHomeId = buildHomeProductLoanMap(docs as HomeLoanDoc[]);
+      // Products added from the admin backend (not part of the catalog) — same
+      // set the Orders page shows, minus settled ones.
+      customRows = docs.flatMap((doc) => {
+        const row = doc as {
+          product_name?: string;
+          amount_rupees?: unknown;
+          default_product_key?: string | null;
+          status?: unknown;
+        };
+        if (normalizeLoanStatus(row.status) === "settled") return [];
+        if (resolveHomeProductKeyForLoan(row)) return [];
+        const amountRupees = Math.round(Number(row.amount_rupees ?? 0));
+        return [
+          {
+            id: String(doc._id),
+            productName: String(row.product_name ?? "Loan"),
+            amountRupees,
+            status: row.status ?? "active",
+            detailHref:
+              amountRupees > 0
+                ? `/payment?payableAmountRupees=${amountRupees + ORDER_INTEREST_FEE_RUPEES}`
+                : undefined,
+          },
+        ];
+      });
     } catch {
       // Keep home usable even if loan lookup fails.
     }
   }
 
-  const recommendationRows = Object.values(HOME_PRODUCTS).filter((row) => {
-    if (!isHomeProductVisibleForUser(globalMap, enabledMap, row.id)) {
-      return false;
-    }
-    const fromDb = loanByHomeId.get(row.id);
-    if (fromDb && normalizeLoanStatus(fromDb.status) === "settled") {
-      return false;
-    }
-    return true;
-  });
+  const catalogRows: RecommendationCard[] = Object.values(HOME_PRODUCTS)
+    .filter((row) => {
+      if (!isHomeProductVisibleForUser(globalMap, enabledMap, row.id)) {
+        return false;
+      }
+      const fromDb = loanByHomeId.get(row.id);
+      if (fromDb && normalizeLoanStatus(fromDb.status) === "settled") {
+        return false;
+      }
+      return true;
+    })
+    .map((row) => {
+      const fromDb = loanByHomeId.get(row.id);
+      return {
+        id: row.id,
+        productName: row.productName,
+        amountRupees: fromDb ? fromDb.amountRupees : row.loanAmountRupees,
+        status: fromDb?.status ?? "active",
+        detailHref: `/order/${row.id}`,
+      };
+    });
+  const recommendationRows = [...customRows, ...catalogRows];
 
   return (
     <main className="px-4 pt-4">
@@ -140,9 +190,7 @@ export default async function HomePage() {
 
         <div className="mt-4 space-y-4">
           {recommendationRows.map((row) => {
-            const fromDb = loanByHomeId.get(row.id);
-            const amountRupees = fromDb ? fromDb.amountRupees : row.loanAmountRupees;
-            const statusUi = loanStatusDisplay(fromDb?.status ?? "active");
+            const statusUi = loanStatusDisplay(row.status);
             return (
             <article
               key={row.id}
@@ -181,15 +229,17 @@ export default async function HomePage() {
                 <div className="min-w-0">
                   <p className="text-[11px] text-zinc-500 sm:text-xs">Amount of money</p>
                   <p className="font-[family-name:var(--font-montserrat)] text-lg font-bold tabular-nums text-zinc-900 sm:text-xl">
-                    ₹ {formatInr(amountRupees)}
+                    ₹ {formatInr(row.amountRupees)}
                   </p>
                 </div>
+                {row.detailHref ? (
                 <Link
-                  href={`/order/${row.id}`}
+                  href={row.detailHref}
                   className="shrink-0 cursor-pointer rounded-lg bg-brand-indigo px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-indigo/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-indigo sm:px-5 sm:text-sm"
                 >
                   Detail
                 </Link>
+                ) : null}
               </div>
             </article>
             );

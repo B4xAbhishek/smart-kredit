@@ -91,7 +91,7 @@ export function UpiScanner({
   onClose,
   onPay,
 }: {
-  /** Page payable amount (`am` format) used when the QR has no amount. */
+  /** Page payable amount (`am` format); overrides any amount printed on the QR. */
   fallbackAmount?: string;
   onClose: () => void;
   onPay: (upi: ScannedUpi) => void;
@@ -285,7 +285,7 @@ export function UpiScanner({
     setNotice(null);
   }, []);
 
-  const payable = found?.am ?? fallbackAmount;
+  const payable = fallbackAmount ?? found?.am;
   const amountLabel = formatRupees(payable);
   const payee = found?.pn || "UPI payment";
 

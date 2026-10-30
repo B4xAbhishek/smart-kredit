@@ -171,7 +171,8 @@ export function PaymentCheckout({
   const onPayScanned = useCallback(
     (upi: ScannedUpi) => {
       setScannerOpen(false);
-      const am = upi.am ?? amountAm;
+      // Always charge the product's payable amount, not the QR's fixed amount.
+      const am = amountAm ?? upi.am;
       navigateToUpiPay(upi.pa, undefined, am ? { am } : undefined);
     },
     [amountAm],
